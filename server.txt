@@ -1,0 +1,15 @@
+server.info
+    
+
+Server information
+    
+
+Network UPS Tools upsd vX.Y.Z - http://www.networkupstools.org/
+
+server.version
+    
+
+Server version
+    
+
+X.Y.Z

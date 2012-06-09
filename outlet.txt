@@ -1,0 +1,119 @@
+outlet.n.id
+    
+
+Outlet system identifier (opaque string)
+    
+
+1
+
+outlet.n.desc
+    
+
+Outlet description (opaque string)
+    
+
+Main outlet
+
+outlet.n.switch
+    
+
+Outlet switch control (on/off)
+    
+
+on
+
+outlet.n.status
+    
+
+Outlet switch status (on/off)
+    
+
+on
+
+outlet.n.switchable
+    
+
+Outlet switch ability (yes/no)
+    
+
+yes
+
+outlet.n.autoswitch.charge.low
+    
+
+Remaining battery level to power off this outlet (percent)
+    
+
+80
+
+outlet.n.delay.shutdown
+    
+
+Interval to wait before shutting down this outlet (seconds)
+    
+
+180
+
+outlet.n.delay.start
+    
+
+Interval to wait before restarting this outlet (seconds)
+    
+
+120
+
+outlet.n.current
+    
+
+Current (A)
+    
+
+0.19
+
+outlet.n.current.maximum
+    
+
+Maximum seen current (A)
+    
+
+0.56
+
+outlet.n.realpower
+    
+
+Current value of real power (W)
+    
+
+28
+
+outlet.n.voltage
+    
+
+Voltage (V)
+    
+
+247.0
+
+outlet.n.powerfactor
+    
+
+Power Factor (dimensionless value between 0 and 1)
+    
+
+0.85
+
+outlet.n.crestfactor
+    
+
+Crest Factor (dimensionless, equal to or greater than 1)
+    
+
+1.41
+
+outlet.n.power
+    
+
+Apparent power (VA)
+    
+
+46

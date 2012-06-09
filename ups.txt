@@ -1,0 +1,295 @@
+ups.status
+    
+
+UPS status
+    
+
+OL
+
+ups.alarm
+    
+
+UPS alarms
+    
+
+OVERHEAT
+
+ups.time
+    
+
+Internal UPS clock time (opaque string)
+    
+
+12:34
+
+ups.date
+    
+
+Internal UPS clock date (opaque string)
+    
+
+01-02-03
+
+ups.model
+    
+
+UPS model
+    
+
+SMART-UPS 700
+
+ups.mfr
+    
+
+UPS manufacturer
+    
+
+APC
+
+ups.mfr.date
+    
+
+UPS manufacturing date (opaque string)
+    
+
+10/17/96
+
+ups.serial
+    
+
+UPS serial number (opaque string)
+    
+
+WS9643050926
+
+ups.vendorid
+    
+
+Vendor ID for USB devices
+    
+
+0463
+
+ups.productid
+    
+
+Product ID for USB devices
+    
+
+0001
+
+ups.firmware
+    
+
+UPS firmware (opaque string)
+    
+
+50.9.D
+
+ups.firmware.aux
+    
+
+Auxiliary device firmware
+    
+
+4Kx
+
+ups.temperature
+    
+
+UPS temperature (degrees C)
+    
+
+042.7
+
+ups.load
+    
+
+Load on UPS (percent)
+    
+
+023.4
+
+ups.load.high
+    
+
+Load when UPS switches to overload condition ("OVER") (percent)
+    
+
+100
+
+ups.id
+    
+
+UPS system identifier (opaque string)
+    
+
+Sierra
+
+ups.delay.start
+    
+
+Interval to wait before restarting the load (seconds)
+    
+
+0
+
+ups.delay.reboot
+    
+
+Interval to wait before rebooting the UPS (seconds)
+    
+
+60
+
+ups.delay.shutdown
+    
+
+Interval to wait after shutdown with delay command (seconds)
+    
+
+20
+
+ups.timer.start
+    
+
+Time before the load will be started (seconds)
+    
+
+30
+
+ups.timer.reboot
+    
+
+Time before the load will be rebooted (seconds)
+    
+
+10
+
+ups.timer.shutdown
+    
+
+Time before the load will be shutdown (seconds)
+    
+
+20
+
+ups.test.interval
+    
+
+Interval between self tests (seconds)
+    
+
+1209600 (two weeks)
+
+ups.test.result
+    
+
+Results of last self test (opaque string)
+    
+
+Bad battery pack
+
+ups.display.language
+    
+
+Language to use on front panel (* opaque)
+    
+
+E
+
+ups.contacts
+    
+
+UPS external contact sensors (* opaque)
+    
+
+F0
+
+ups.efficiency
+    
+
+Efficiency of the UPS (ratio of the output current on the input current) (percent)
+    
+
+95
+
+ups.power
+    
+
+Current value of apparent power (Volt-Amps)
+    
+
+500
+
+ups.power.nominal
+    
+
+Nominal value of apparent power (Volt-Amps)
+    
+
+500
+
+ups.realpower
+    
+
+Current value of real power (Watts)
+    
+
+300
+
+ups.realpower.nominal
+    
+
+Nominal value of real power (Watts)
+    
+
+300
+
+ups.beeper.status
+    
+
+UPS beeper status (enabled, disabled or muted)
+    
+
+enabled
+
+ups.type
+    
+
+UPS type (* opaque)
+    
+
+offline
+
+ups.watchdog.status
+    
+
+UPS watchdog status (enabled or disabled)
+    
+
+disabled
+
+ups.start.auto
+    
+
+UPS starts when mains is (re)applied
+    
+
+yes
+
+ups.start.battery
+    
+
+Allow to start UPS from battery
+    
+
+yes
+
+ups.start.reboot
+    
+
+UPS coldstarts from battery (enabled or disabled)
+    
+
+yes

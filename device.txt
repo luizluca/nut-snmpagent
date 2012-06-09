@@ -1,0 +1,32 @@
+device.model
+    
+
+Device model
+    
+
+BladeUPS
+
+device.mfr
+    
+
+Device manufacturer
+    
+
+Eaton
+
+device.serial
+    
+
+Device serial number (opaque string)
+    
+
+WS9643050926
+
+device.type
+    
+
+Device type (ups, pdu, scd)
+    
+
+ups
+

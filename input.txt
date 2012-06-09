@@ -1,0 +1,199 @@
+input.voltage
+    
+
+Input voltage
+    
+
+121.5
+
+input.voltage.maximum
+    
+
+Maximum incoming voltage seen
+    
+
+130
+
+input.voltage.minimum
+    
+
+Minimum incoming voltage seen
+    
+
+100
+
+input.voltage.nominal
+    
+
+Nominal input voltage
+    
+
+120
+
+input.voltage.extended
+    
+
+Extended input voltage range
+    
+
+no
+
+input.transfer.reason
+    
+
+Reason for last transfer to battery (* opaque)
+    
+
+T
+
+input.transfer.low
+    
+
+Low voltage transfer point
+    
+
+91
+
+input.transfer.high
+    
+
+High voltage transfer point
+    
+
+132
+
+input.transfer.low.min
+    
+
+smallest settable low voltage transfer point
+    
+
+85
+
+input.transfer.low.max
+    
+
+greatest settable low voltage transfer point
+    
+
+95
+
+input.transfer.high.min
+    
+
+smallest settable high voltage transfer point
+    
+
+131
+
+input.transfer.high.max
+    
+
+greatest settable high voltage transfer point
+    
+
+136
+
+input.sensitivity
+    
+
+Input power sensitivity
+    
+
+H (high)
+
+input.quality
+    
+
+Input power quality (* opaque)
+    
+
+FF
+
+input.current
+    
+
+Input current (A)
+    
+
+4.25
+
+input.current.nominal
+    
+
+Nominal input current (A)
+    
+
+5.0
+
+input.frequency
+    
+
+Input line frequency (Hz)
+    
+
+60.00
+
+input.frequency.nominal
+    
+
+Nominal input line frequency (Hz)
+    
+
+60
+
+input.frequency.low
+    
+
+Input line frequency low (Hz)
+    
+
+47
+
+input.frequency.high
+    
+
+Input line frequency high (Hz)
+    
+
+63
+
+input.frequency.extended
+    
+
+Extended input frequency range
+    
+
+no
+
+input.transfer.boost.low
+    
+
+Low voltage boosting transfer point
+    
+
+190
+
+input.transfer.boost.high
+    
+
+High voltage boosting transfer point
+    
+
+210
+
+input.transfer.trim.low
+    
+
+Low voltage trimming transfer point
+    
+
+230
+
+input.transfer.trim.high
+    
+
+High voltage trimming transfer point
+    
+
+240

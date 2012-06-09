@@ -1,0 +1,2015 @@
+NUT-MIB DEFINITIONS ::= BEGIN
+
+IMPORTS
+        MODULE-IDENTITY, OBJECT-TYPE, Integer32, enterprises
+            FROM SNMPv2-SMI
+
+        DisplayString, TEXTUAL-CONVENTION
+            FROM SNMPv2-TC
+        MODULE-COMPLIANCE, OBJECT-GROUP
+            FROM SNMPv2-CONF;
+
+nutMIB MODULE-IDENTITY
+    LAST-UPDATED "201205230000Z"
+    ORGANIZATION "Network UPS Tools"
+    CONTACT-INFO
+              "        Luiz Angelo Daros de Luca
+                       E-mail: luizluca@gmail.com"
+    DESCRIPTION
+               "The MIB module list information about local configured UPS
+	       managed by NUT."
+    REVISION     "201205230000Z"
+    DESCRIPTION  "First release"
+       ::= { enterprises 26376 99 }
+
+-- temporary usage of tresc number as NUT does not have one
+tresc OBJECT IDENTIFIER ::= { enterprises 26376 }
+
+DeviceIndexType ::= TEXTUAL-CONVENTION
+    DISPLAY-HINT "d"
+    STATUS       current
+    DESCRIPTION
+            "A unique value, greater than zero, for each device. It is
+	    recommended that values are assigned contiguously starting
+            from 1." 
+    SYNTAX       Integer32 (1..2147483647)
+
+OutletIndexType ::= TEXTUAL-CONVENTION
+    DISPLAY-HINT "d"
+    STATUS       current
+    DESCRIPTION
+            "A unique value, greater than or equal to zero, for each outlet. It is
+	    recommended that values are assigned contiguously starting
+            from 1." 
+    SYNTAX       Integer32 (0..2147483647)
+
+TenthInteger32 ::=  TEXTUAL-CONVENTION
+    DISPLAY-HINT    "d-1"
+    STATUS          current
+    DESCRIPTION
+       "A Integer32 that represents a real number, with one decimal case. I.e.: 123 for 12.3"
+    SYNTAX          Integer32
+
+HundredthInteger32 ::=  TEXTUAL-CONVENTION
+    DISPLAY-HINT    "d-2"
+    STATUS          current
+    DESCRIPTION
+       "A Integer32 that represents a real number, with two decimal case. I.e.: 123 for 1.23"
+    SYNTAX          Integer32     
+    
+nutMIBObjects        OBJECT IDENTIFIER ::= { nutMIB 1 }
+
+--
+-- This are information from device.* ups.* variables plus the ups name and desc,
+-- which are not part of the variables but returned by the command "upsc -L"
+--
+
+deviceTable     OBJECT-TYPE
+    SYNTAX      SEQUENCE OF DeviceEntryType
+    MAX-ACCESS      not-accessible
+    STATUS          current
+    DESCRIPTION
+         "A list of device."
+    ::= { nutMIBObjects 1 }
+
+DeviceEntryType ::=
+	SEQUENCE {
+		deviceIndex	DeviceIndexType,
+		deviceName	DisplayString,
+		deviceDesc	DisplayString,
+		deviceModel	DisplayString,
+		deviceMfr	DisplayString,
+		deviceSerial	DisplayString,
+		deviceType	DisplayString
+	}
+
+deviceEntry OBJECT-TYPE
+    SYNTAX      DeviceEntryType
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION
+            "An entry containing information about a particular device."
+    INDEX   { deviceIndex }
+    ::= { deviceTable 1 }
+
+deviceIndex OBJECT-TYPE
+	SYNTAX      DeviceIndexType
+	MAX-ACCESS  not-accessible
+	STATUS      current
+	DESCRIPTION
+            "A unique value, greater than zero, for each device"
+    ::= { deviceEntry 1 }
+
+deviceName OBJECT-TYPE
+    SYNTAX      DisplayString (SIZE (0..255))
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+            "The name of the device."
+    ::= { deviceEntry 2 }
+
+deviceDesc OBJECT-TYPE
+    SYNTAX      DisplayString (SIZE (0..255))
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+            "A textual string containing information about the device."
+    ::= { deviceEntry 3 }
+
+-- Name                           Description                                                            Example value
+-- device.model                   Device model                                                           BladeUPS  
+-- device.mfr                     Device manufacturer                                                    Eaton     
+-- device.serial                  Device serial number (opaque string)                                   WS9643050926
+-- device.type                    Device type (ups, pdu, scd)                                            ups       
+
+deviceModel OBJECT-TYPE
+    SYNTAX      DisplayString (SIZE (0..255))
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Device model. I.e. BladeUPS."
+    ::= { deviceEntry 4 }
+
+deviceMfr OBJECT-TYPE
+    SYNTAX      DisplayString (SIZE (0..255))
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Device manufacturer. I.e. Eaton."
+    ::= { deviceEntry 5 }
+
+deviceSerial OBJECT-TYPE
+    SYNTAX      DisplayString (SIZE (0..255))
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Device serial number (opaque string). I.e. WS9643050926."
+    ::= { deviceEntry 6 }
+
+deviceType OBJECT-TYPE
+    SYNTAX      DisplayString (SIZE (0..255))
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Device type (ups, pdu, scd). I.e. ups."
+    ::= { deviceEntry 7 }
+
+-- Name                           Description                                                            Example value
+-- ups.status                     UPS status                                                             OL        
+-- ups.alarm                      UPS alarms                                                             OVERHEAT  
+-- ups.time                       Internal UPS clock time (opaque string)                                12:34     
+-- ups.date                       Internal UPS clock date (opaque string)                                01-02-03  
+-- ups.model                      UPS model                                                              SMART-UPS 700
+-- ups.mfr                        UPS manufacturer                                                       APC       
+-- ups.mfr.date                   UPS manufacturing date (opaque string)                                 10/17/96  
+-- ups.serial                     UPS serial number (opaque string)                                      WS9643050926
+-- ups.vendorid                   Vendor ID for USB devices                                              0463      
+-- ups.productid                  Product ID for USB devices                                             0001      
+-- ups.firmware                   UPS firmware (opaque string)                                           50.9.D    
+-- ups.firmware.aux               Auxiliary device firmware                                              4Kx       
+-- ups.temperature                UPS temperature (degrees C)                                            042.7     
+-- ups.load                       Load on UPS (percent)                                                  023.4     
+-- ups.load.high                  Load when UPS switches to overload condition ("OVER") (percent)        100       
+-- ups.id                         UPS system identifier (opaque string)                                  Sierra    
+-- ups.delay.start                Interval to wait before restarting the load (seconds)                  0         
+-- ups.delay.reboot               Interval to wait before rebooting the UPS (seconds)                    60        
+-- ups.delay.shutdown             Interval to wait after shutdown with delay command (seconds)           20        
+-- ups.timer.start                Time before the load will be started (seconds)                         30        
+-- ups.timer.reboot               Time before the load will be rebooted (seconds)                        10        
+-- ups.timer.shutdown             Time before the load will be shutdown (seconds)                        20        
+-- ups.test.interval              Interval between self tests (seconds)                                  1209600 (two weeks)
+-- ups.test.result                Results of last self test (opaque string)                              Bad battery pack
+-- ups.display.language           Language to use on front panel (* opaque)                              E         
+-- ups.contacts                   UPS external contact sensors (* opaque)                                F0        
+-- ups.efficiency                 Efficiency of the UPS (ratio of the output current on the input current) (percent) 95        
+-- ups.power                      Current value of apparent power (Volt-Amps)                            500       
+-- ups.power.nominal              Nominal value of apparent power (Volt-Amps)                            500       
+-- ups.realpower                  Current value of real power (Watts)                                    300       
+-- ups.realpower.nominal          Nominal value of real power (Watts)                                    300       
+-- ups.beeper.status              UPS beeper status (enabled, disabled or muted)                         enabled   
+-- ups.type                       UPS type (* opaque)                                                    offline   
+-- ups.watchdog.status            UPS watchdog status (enabled or disabled)                              disabled  
+-- ups.start.auto                 UPS starts when mains is (re)applied                                   yes       
+-- ups.start.battery              Allow to start UPS from battery                                        yes       
+-- ups.start.reboot               UPS coldstarts from battery (enabled or disabled)                      yes       
+
+upsTable     OBJECT-TYPE
+    SYNTAX      SEQUENCE OF UpsEntryType
+    MAX-ACCESS      not-accessible
+    STATUS          current
+    DESCRIPTION
+         "A list of ups."
+    ::= { nutMIBObjects 2 }
+
+UpsEntryType ::=
+    SEQUENCE {
+       upsStatus DisplayString,
+       upsAlarm DisplayString,
+       upsTime DisplayString,
+       upsDate DisplayString,
+       upsModel DisplayString,
+       upsMfr DisplayString,
+       upsMfrDate DisplayString,
+       upsSerial DisplayString,
+       upsVendorid DisplayString,
+       upsProductid DisplayString,
+       upsFirmware DisplayString,
+       upsFirmwareAux DisplayString,
+       upsTemperature TenthInteger32,
+       upsLoad Integer32,
+       upsLoadHigh Integer32,
+       upsId DisplayString,
+       upsDelayStart Integer32, 
+       upsDelayReboot Integer32,
+       upsDelayShutdown Integer32,
+       upsTimerStart Integer32,
+       upsTimerReboot Integer32,
+       upsTimerShutdown Integer32,
+       upsTestInterval Integer32,
+       upsTestResult DisplayString,
+       upsDisplayLanguage DisplayString,
+       upsContacts DisplayString,
+       upsEfficiency Integer32,
+       upsPower Integer32,
+       upsPowerNominal Integer32,
+       upsRealpower Integer32,
+       upsRealpowerNominal Integer32,
+       upsBeeperStatus DisplayString,
+       upsType DisplayString,
+       upsWatchdogStatus DisplayString,
+       upsStartAuto INTEGER,
+       upsStartBattery INTEGER,
+       upsStartReboot INTEGER
+    }
+
+upsEntry OBJECT-TYPE
+    SYNTAX      UpsEntryType
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION
+            "An entry containing information about a particular ups."
+    INDEX   { deviceIndex }
+    ::= { upsTable 1 }
+
+upsStatus OBJECT-TYPE
+    SYNTAX      DisplayString (SIZE (0..255))
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "UPS status. I.e. OL."
+    ::= { upsEntry 1 }
+
+upsAlarm OBJECT-TYPE
+    SYNTAX      DisplayString (SIZE (0..255))
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "UPS alarms. I.e. OVERHEAT."
+    ::= { upsEntry 2 }
+
+upsTime OBJECT-TYPE
+    SYNTAX      DisplayString (SIZE (0..255))
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Internal UPS clock time (opaque string). I.e. 12:34."
+    ::= { upsEntry 3 }
+
+upsDate OBJECT-TYPE
+    SYNTAX      DisplayString (SIZE (0..255))
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Internal UPS clock date (opaque string). I.e. 01-02-03."
+    ::= { upsEntry 4 }
+
+upsModel OBJECT-TYPE
+    SYNTAX      DisplayString (SIZE (0..255))
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "UPS model. I.e. SMART-UPS 700."
+    ::= { upsEntry 5 }
+
+upsMfr OBJECT-TYPE
+    SYNTAX      DisplayString (SIZE (0..255))
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "UPS manufacturer. I.e. APC."
+    ::= { upsEntry 6 }
+
+upsMfrDate OBJECT-TYPE
+    SYNTAX      DisplayString (SIZE (0..255))
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "UPS manufacturing date (opaque string). I.e. 10/17/96."
+    ::= { upsEntry 7 }
+
+upsSerial OBJECT-TYPE
+    SYNTAX      DisplayString (SIZE (0..255))
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "UPS serial number (opaque string). I.e. WS9643050926."
+    ::= { upsEntry 8 }
+
+upsVendorid OBJECT-TYPE
+    SYNTAX      DisplayString (SIZE (0..255))
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Vendor ID for USB devices. I.e. 0463."
+    ::= { upsEntry 9 }
+
+upsProductid OBJECT-TYPE
+    SYNTAX      DisplayString (SIZE (0..255))
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Product ID for USB devices. I.e. 0001."
+    ::= { upsEntry 10 }
+
+upsFirmware OBJECT-TYPE
+    SYNTAX      DisplayString (SIZE (0..255))
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "UPS firmware (opaque string). I.e. 50.9.D."
+    ::= { upsEntry 11 }
+
+upsFirmwareAux OBJECT-TYPE
+    SYNTAX      DisplayString (SIZE (0..255))
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Auxiliary device firmware. I.e. 4Kx."
+    ::= { upsEntry 12 }
+
+upsTemperature OBJECT-TYPE
+    SYNTAX      TenthInteger32 (-2730..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "UPS temperature (in 0.1 degrees C). I.e. 427 (for 42.7oC)."
+    ::= { upsEntry 13 }
+
+upsLoad OBJECT-TYPE
+    SYNTAX      Integer32 (0..100)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Load on UPS (percent). I.e. 023."
+    ::= { upsEntry 14 }
+
+upsLoadHigh OBJECT-TYPE
+    SYNTAX      Integer32 (0..100)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Load when UPS switches to overload condition ('OVER') (percent). I.e. 100."
+    ::= { upsEntry 15 }
+
+upsId OBJECT-TYPE
+    SYNTAX      DisplayString (SIZE (0..255))
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "UPS system identifier (opaque string). I.e. Sierra."
+    ::= { upsEntry 16 }
+
+upsDelayStart OBJECT-TYPE
+    SYNTAX      Integer32 (-1..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Interval to wait before restarting the load (seconds). I.e. 0."
+    ::= { upsEntry 17 }
+
+upsDelayReboot OBJECT-TYPE
+    SYNTAX      Integer32 (-1..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Interval to wait before rebooting the UPS (seconds). I.e. 60."
+    ::= { upsEntry 18 }
+
+upsDelayShutdown OBJECT-TYPE
+    SYNTAX      Integer32 (-1..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Interval to wait after shutdown with delay command (seconds). I.e. 20."
+    ::= { upsEntry 19 }
+
+upsTimerStart OBJECT-TYPE
+    SYNTAX      Integer32 (-1..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Time before the load will be started (seconds). I.e. 30."
+    ::= { upsEntry 20 }
+
+upsTimerReboot OBJECT-TYPE
+    SYNTAX      Integer32 (-1..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Time before the load will be rebooted (seconds). I.e. 10."
+    ::= { upsEntry 21 }
+
+upsTimerShutdown OBJECT-TYPE
+    SYNTAX      Integer32 (-1..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Time before the load will be shutdown (seconds). I.e. 20."
+    ::= { upsEntry 22 }
+
+upsTestInterval OBJECT-TYPE
+    SYNTAX      Integer32 (-1..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Interval between self tests (seconds). I.e. 1209600 (two weeks)."
+    ::= { upsEntry 23 }
+
+upsTestResult OBJECT-TYPE
+    SYNTAX      DisplayString (SIZE (0..255))
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Results of last self test (opaque string). I.e. Bad battery pack."
+    ::= { upsEntry 24 }
+
+upsDisplayLanguage OBJECT-TYPE
+    SYNTAX      DisplayString (SIZE (0..255))
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Language to use on front panel (* opaque). I.e. E."
+    ::= { upsEntry 25 }
+
+upsContacts OBJECT-TYPE
+    SYNTAX      DisplayString (SIZE (0..255))
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "UPS external contact sensors (* opaque). I.e. F0."
+    ::= { upsEntry 26 }
+
+upsEfficiency OBJECT-TYPE
+    SYNTAX      Integer32 (0..100)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Efficiency of the UPS (ratio of the output current on the input current) (percent). I.e. 95."
+    ::= { upsEntry 27 }
+
+upsPower OBJECT-TYPE
+    SYNTAX      Integer32 (0..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Current value of apparent power (Volt-Amps). I.e. 500."
+    ::= { upsEntry 28 }
+
+upsPowerNominal OBJECT-TYPE
+    SYNTAX      Integer32 (0..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Nominal value of apparent power (Volt-Amps). I.e. 500."
+    ::= { upsEntry 29 }
+
+upsRealpower OBJECT-TYPE
+    SYNTAX      Integer32 (0..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Current value of real power (Watts). I.e. 300."
+    ::= { upsEntry 30 }
+
+upsRealpowerNominal OBJECT-TYPE
+    SYNTAX      Integer32 (0..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Nominal value of real power (Watts). I.e. 300."
+    ::= { upsEntry 31 }
+
+upsBeeperStatus OBJECT-TYPE
+    SYNTAX      DisplayString (SIZE (0..255))
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "UPS beeper status (enabled, disabled or muted). I.e. enabled."
+    ::= { upsEntry 32 }
+
+upsType OBJECT-TYPE
+    SYNTAX      DisplayString (SIZE (0..255))
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "UPS type (* opaque). I.e. offline."
+    ::= { upsEntry 33 }
+
+upsWatchdogStatus OBJECT-TYPE
+    SYNTAX      DisplayString (SIZE (0..255))
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "UPS watchdog status (enabled or disabled). I.e. disabled."
+    ::= { upsEntry 34 }
+
+upsStartAuto OBJECT-TYPE
+    SYNTAX      INTEGER { no(0), yes(1) }
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "UPS starts when mains is (re)applied. I.e. yes."
+    ::= { upsEntry 35 }
+
+upsStartBattery OBJECT-TYPE
+    SYNTAX      INTEGER { no(0), yes(1) }
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Allow to start UPS from battery. I.e. yes."
+    ::= { upsEntry 36 }
+
+upsStartReboot OBJECT-TYPE
+    SYNTAX      INTEGER { no(0), yes(1) }
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "UPS coldstarts from battery (enabled or disabled). I.e. yes."
+    ::= { upsEntry 37 }
+
+-- Name                           Description                                                            Example value
+-- input.voltage                  Input voltage                                                          121.5     
+-- input.voltage.maximum          Maximum incoming voltage seen                                          130       
+-- input.voltage.minimum          Minimum incoming voltage seen                                          100       
+-- input.voltage.nominal          Nominal input voltage                                                  120       
+-- input.voltage.extended         Extended input voltage range                                           no        
+-- input.transfer.reason          Reason for last transfer to battery (* opaque)                         T         
+-- input.transfer.low             Low voltage transfer point                                             91        
+-- input.transfer.high            High voltage transfer point                                            132       
+-- input.transfer.low.min         smallest settable low voltage transfer point                           85        
+-- input.transfer.low.max         greatest settable low voltage transfer point                           95        
+-- input.transfer.high.min        smallest settable high voltage transfer point                          131       
+-- input.transfer.high.max        greatest settable high voltage transfer point                          136       
+-- input.sensitivity              Input power sensitivity                                                H (high)  
+-- input.quality                  Input power quality (* opaque)                                         FF        
+-- input.current                  Input current (A)                                                      4.25      
+-- input.current.nominal          Nominal input current (A)                                              5.0       
+-- input.frequency                Input line frequency (Hz)                                              60.00     
+-- input.frequency.nominal        Nominal input line frequency (Hz)                                      60        
+-- input.frequency.low            Input line frequency low (Hz)                                          47        
+-- input.frequency.high           Input line frequency high (Hz)                                         63        
+-- input.frequency.extended       Extended input frequency range                                         no        
+-- input.transfer.boost.low       Low voltage boosting transfer point                                    190       
+-- input.transfer.boost.high      High voltage boosting transfer point                                   210       
+-- input.transfer.trim.low        Low voltage trimming transfer point                                    230       
+-- input.transfer.trim.high       High voltage trimming transfer point                                   240
+--
+-- input.phases                   (3 for three-phase, absent or 1 for 1 phase)                           1
+
+inputTable     OBJECT-TYPE
+    SYNTAX      SEQUENCE OF InputEntryType
+    MAX-ACCESS      not-accessible
+    STATUS          current
+    DESCRIPTION
+         "A list of input."
+    ::= { nutMIBObjects 3 }
+
+InputEntryType ::=
+    SEQUENCE {
+       inputVoltage TenthInteger32,
+       inputVoltageMaximum TenthInteger32,
+       inputVoltageMinimum TenthInteger32,
+       inputVoltageNominal TenthInteger32,
+       inputVoltageExtended INTEGER,
+       inputTransferReason DisplayString,
+       inputTransferLow Integer32,
+       inputTransferHigh Integer32,
+       inputTransferLowMin Integer32, 
+       inputTransferLowMax Integer32,
+       inputTransferHighMin Integer32,
+       inputTransferHighMax Integer32,
+       inputSensitivity DisplayString,
+       inputQuality DisplayString,
+       inputCurrent HundredthInteger32,
+       inputCurrentNominal HundredthInteger32,
+       inputFrequency TenthInteger32,
+       inputFrequencyNominal TenthInteger32,
+       inputFrequencyLow TenthInteger32,
+       inputFrequencyHigh TenthInteger32,
+       inputFrequencyExtended INTEGER,
+       inputTransferBoostLow Integer32,
+       inputTransferBoostHigh Integer32,
+       inputTransferTrimLow Integer32,
+       inputTransferTrimHigh Integer32,
+       inputPhases Integer32
+    }
+
+inputEntry OBJECT-TYPE
+    SYNTAX      InputEntryType
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION
+            "An entry containing information about a particular input."
+    INDEX   { deviceIndex }
+    ::= { inputTable 1 }
+
+inputVoltage OBJECT-TYPE
+    SYNTAX      TenthInteger32 (0..2147483647) 
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Input voltage (0.1V). I.e. 1212 (121.2V)."
+    ::= { inputEntry 1 }
+
+inputVoltageMaximum OBJECT-TYPE
+    SYNTAX      TenthInteger32 (0..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Maximum incoming voltage seen (0.1V). I.e. 1300."
+    ::= { inputEntry 2 }
+
+inputVoltageMinimum OBJECT-TYPE
+    SYNTAX      TenthInteger32 (0..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Minimum incoming voltage seen (0.1V). I.e. 1000."
+    ::= { inputEntry 3 }
+
+inputVoltageNominal OBJECT-TYPE
+    SYNTAX      TenthInteger32 (0..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Nominal input voltage (0.1V). I.e. 1200."
+    ::= { inputEntry 4 }
+
+inputVoltageExtended OBJECT-TYPE
+    SYNTAX      INTEGER { no(0), yes(1) }
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Extended input voltage range. I.e. no."
+    ::= { inputEntry 5 }
+
+inputTransferReason OBJECT-TYPE
+    SYNTAX      DisplayString (SIZE (0..255))
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Reason for last transfer to battery (* opaque). I.e. T."
+    ::= { inputEntry 6 }
+
+inputTransferLow OBJECT-TYPE
+    SYNTAX      Integer32 (0..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Low voltage transfer point. I.e. 91."
+    ::= { inputEntry 7 }
+
+inputTransferHigh OBJECT-TYPE
+    SYNTAX      Integer32 (0..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "High voltage transfer point. I.e. 132."
+    ::= { inputEntry 8 }
+
+inputTransferLowMin OBJECT-TYPE
+    SYNTAX      Integer32 (0..2147483647) 
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "smallest settable low voltage transfer point. I.e. 85."
+    ::= { inputEntry 9 }
+
+inputTransferLowMax OBJECT-TYPE
+    SYNTAX      Integer32 (0..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "greatest settable low voltage transfer point. I.e. 95."
+    ::= { inputEntry 10 }
+
+inputTransferHighMin OBJECT-TYPE
+    SYNTAX      Integer32 (0..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "smallest settable high voltage transfer point. I.e. 131."
+    ::= { inputEntry 11 }
+
+inputTransferHighMax OBJECT-TYPE
+    SYNTAX      Integer32 (0..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "greatest settable high voltage transfer point. I.e. 136."
+    ::= { inputEntry 12 }
+
+inputSensitivity OBJECT-TYPE
+    SYNTAX      DisplayString (SIZE (0..255))
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Input power sensitivity. I.e. H (high)."
+    ::= { inputEntry 13 }
+
+inputQuality OBJECT-TYPE
+    SYNTAX      DisplayString (SIZE (0..255))
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Input power quality (* opaque). I.e. FF."
+    ::= { inputEntry 14 }
+
+inputCurrent OBJECT-TYPE
+    SYNTAX      HundredthInteger32 (0..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Input current (0.01 A). I.e. 425 (4.25A)."
+    ::= { inputEntry 15 }
+
+inputCurrentNominal OBJECT-TYPE
+    SYNTAX      HundredthInteger32 (0..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Nominal input current (0.01 A). I.e. 500 (5 A)."
+    ::= { inputEntry 16 }
+
+inputFrequency OBJECT-TYPE
+    SYNTAX      TenthInteger32 (0..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Input line frequency (0.1 Hz). I.e. 602 (60.2 Hz)."
+    ::= { inputEntry 17 }
+
+inputFrequencyNominal OBJECT-TYPE
+    SYNTAX      TenthInteger32 (0..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Nominal input line frequency (0.1 Hz). I.e. 600."
+    ::= { inputEntry 18 }
+
+inputFrequencyLow OBJECT-TYPE
+    SYNTAX      TenthInteger32 (0..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Input line frequency low (0.1 Hz). I.e. 470."
+    ::= { inputEntry 19 }
+
+inputFrequencyHigh OBJECT-TYPE
+    SYNTAX      TenthInteger32 (0..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Input line frequency high (0.1 Hz). I.e. 630."
+    ::= { inputEntry 20 }
+
+inputFrequencyExtended OBJECT-TYPE
+    SYNTAX      INTEGER { no(0), yes(1) }
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Extended input frequency range. I.e. no."
+    ::= { inputEntry 21 }
+
+inputTransferBoostLow OBJECT-TYPE
+    SYNTAX      Integer32 (0..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Low voltage boosting transfer point. I.e. 190."
+    ::= { inputEntry 22 }
+
+inputTransferBoostHigh OBJECT-TYPE
+    SYNTAX      Integer32 (0..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "High voltage boosting transfer point. I.e. 210."
+    ::= { inputEntry 23 }
+
+inputTransferTrimLow OBJECT-TYPE
+    SYNTAX      Integer32 (0..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Low voltage trimming transfer point. I.e. 230."
+    ::= { inputEntry 24 }
+
+inputTransferTrimHigh OBJECT-TYPE
+    SYNTAX      Integer32 (0..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "High voltage trimming transfer point. I.e. 240."
+    ::= { inputEntry 25 }
+
+inputPhases OBJECT-TYPE
+    SYNTAX      Integer32 (1|3)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "(3 for three-phase, absent or 1 for 1 phase). I.e. 3"
+    ::= { inputEntry 26 }
+    
+-- Name                           Description                                                            Example value
+-- output.voltage                 Output voltage (V)                                                     120.9     
+-- output.voltage.nominal         Nominal output voltage (V)                                             120       
+-- output.frequency               Output frequency (Hz)                                                  59.9      
+-- output.frequency.nominal       Nominal output frequency (Hz)                                          60        
+-- output.current                 Output current (A)                                                     4.25      
+-- output.current.nominal         Nominal output current (A)                                             5.0       
+--
+-- output.phases                  (3 for three-phase, absent or 1 for 1 phase)                           1
+
+outputTable     OBJECT-TYPE
+    SYNTAX      SEQUENCE OF OutputEntryType
+    MAX-ACCESS      not-accessible
+    STATUS          current
+    DESCRIPTION
+         "A list of output."
+    ::= { nutMIBObjects 4 }
+
+OutputEntryType ::=
+    SEQUENCE {
+       outputVoltage TenthInteger32,
+       outputVoltageNominal TenthInteger32,
+       outputFrequency TenthInteger32,
+       outputFrequencyNominal TenthInteger32,
+       outputCurrent HundredthInteger32,
+       outputCurrentNominal HundredthInteger32,
+       outputPhases Integer32
+    }
+
+outputEntry OBJECT-TYPE
+    SYNTAX      OutputEntryType
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION
+            "An entry containing information about a particular output."
+    INDEX   { deviceIndex }
+    ::= { outputTable 1 }
+
+outputVoltage OBJECT-TYPE
+    SYNTAX      TenthInteger32 (0..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Output voltage (0.1 V). I.e. 120.9."
+    ::= { outputEntry 1 }
+
+outputVoltageNominal OBJECT-TYPE
+    SYNTAX      TenthInteger32 (0..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Nominal output voltage (0.1 V). I.e. 120."
+    ::= { outputEntry 2 }
+
+outputFrequency OBJECT-TYPE
+    SYNTAX      TenthInteger32 (0..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Output frequency (0.1 Hz). I.e. 599 (59.9 Hz)."
+    ::= { outputEntry 3 }
+
+outputFrequencyNominal OBJECT-TYPE
+    SYNTAX      TenthInteger32 (0..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Nominal output frequency (0.1 Hz). I.e. 60."
+    ::= { outputEntry 4 }
+
+outputCurrent OBJECT-TYPE
+    SYNTAX      HundredthInteger32 (0..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Output current (0.01 A). I.e. 425 (42.5 A)."
+    ::= { outputEntry 5 }
+
+outputCurrentNominal OBJECT-TYPE
+    SYNTAX      HundredthInteger32 (0..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Nominal output current (0.01 A). I.e. 500 (5 A)."
+    ::= { outputEntry 6 }
+    
+outputPhases OBJECT-TYPE
+    SYNTAX      Integer32 (1|3)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "(3 for three-phase, absent or 1 for 1 phase). I.e. 3"
+    ::= { outputEntry 7 }    
+
+-- Name                           Description                                                            Example value
+-- battery.charge                 Battery charge (percent)                                               100.0     
+-- battery.charge.low             Remaining battery level when UPS switches to LB (percent)              20        
+-- battery.charge.restart         Minimum battery level for UPS restart after power-off                  20        
+-- battery.charge.warning         Battery level when UPS switches to "Warning" state (percent)           50        
+-- battery.voltage                Battery voltage (V)                                                    24.84     
+-- battery.capacity               Battery capacity (Ah)                                                  7.2       
+-- battery.current                Battery current (A)                                                    1.19      
+-- battery.temperature            Battery temperature (degrees C)                                        050.7     
+-- battery.voltage.nominal        Nominal battery voltage (V)                                            024       
+-- battery.runtime                Battery runtime (seconds) Remaining battery runtime                    1080      
+-- battery.runtime.low            when UPS switches to LB (seconds)                                      180       
+-- battery.alarm.threshold        Battery alarm threshold                                                0 (immediate)
+-- battery.date                   Battery change date (opaque string)                                    11/14/00  
+-- battery.mfr.date               Battery manufacturing date (opaque string)                             2005/04/02
+-- battery.packs                  Number of battery packs                                                001       
+-- battery.packs.bad              Number of bad battery packs                                            000       
+-- battery.type                   Battery chemistry (opaque string)                                      PbAc      
+-- battery.protection             Prevent deep discharge of battery                                      yes       
+-- battery.energysave             Switch off when running on battery and no/low load                     no        
+
+batteryTable     OBJECT-TYPE
+    SYNTAX      SEQUENCE OF BatteryEntryType
+    MAX-ACCESS      not-accessible
+    STATUS          current
+    DESCRIPTION
+         "A list of battery."
+    ::= { nutMIBObjects 5 }
+
+BatteryEntryType ::=
+    SEQUENCE {
+       batteryCharge TenthInteger32,
+       batteryChargeLow TenthInteger32,
+       batteryChargeRestart TenthInteger32,
+       batteryChargeWarning TenthInteger32,
+       batteryVoltage HundredthInteger32,
+       batteryCapacity TenthInteger32,
+       batteryCurrent HundredthInteger32,
+       batteryTemperature TenthInteger32,
+       batteryVoltageNominal HundredthInteger32,
+       batteryRuntime Integer32,
+       batteryRuntimeLow Integer32,
+       batteryAlarmThreshold Integer32,
+       batteryDate DisplayString,
+       batteryMfrDate DisplayString,
+       batteryPacks Integer32,
+       batteryPacksBad Integer32,
+       batteryType DisplayString,
+       batteryProtection INTEGER,
+       batteryEnergysave INTEGER
+    }
+
+batteryEntry OBJECT-TYPE
+    SYNTAX      BatteryEntryType
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION
+            "An entry containing information about a particular battery."
+    INDEX   { deviceIndex }
+    ::= { batteryTable 1 }
+
+batteryCharge OBJECT-TYPE
+    SYNTAX      TenthInteger32 (0..1000)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Battery charge (0.1 percent). I.e. 1000 (100%)."
+    ::= { batteryEntry 1 }
+
+batteryChargeLow OBJECT-TYPE
+    SYNTAX      TenthInteger32 (0..1000)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Remaining battery level when UPS switches to LB (0.1 percent). I.e. 20."
+    ::= { batteryEntry 2 }
+
+batteryChargeRestart OBJECT-TYPE
+    SYNTAX      TenthInteger32 (0..1000)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Minimum battery level for UPS restart after power-off (0.1 percent). I.e. 20."
+    ::= { batteryEntry 3 }
+
+batteryChargeWarning OBJECT-TYPE
+    SYNTAX      TenthInteger32 (0..1000)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Battery level when UPS switches to 'Warning' state (0.1 percent). I.e. 50."
+    ::= { batteryEntry 4 }
+
+batteryVoltage OBJECT-TYPE
+    SYNTAX      HundredthInteger32 (0..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Battery voltage (0.01V). I.e. 2484 (24.84 V)."
+    ::= { batteryEntry 5 }
+
+batteryCapacity OBJECT-TYPE
+    SYNTAX      TenthInteger32 (0..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Battery capacity (0.1 Ah). I.e. 72 (7.2 Ah)."
+    ::= { batteryEntry 6 }
+
+batteryCurrent OBJECT-TYPE
+    SYNTAX      HundredthInteger32 (0..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Battery current (0.01 A). I.e. 119 (1.19 A)."
+    ::= { batteryEntry 7 }
+
+batteryTemperature OBJECT-TYPE
+    SYNTAX      TenthInteger32 (-2730..2147483647) 
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Battery temperature (0.1 degrees C). I.e. 507 (50.7oC)."
+    ::= { batteryEntry 8 }
+
+batteryVoltageNominal OBJECT-TYPE
+    SYNTAX      HundredthInteger32 (0..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Nominal battery voltage (0.01 V). I.e. 024."
+    ::= { batteryEntry 9 }
+
+batteryRuntime OBJECT-TYPE
+    SYNTAX      Integer32 (0..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Battery runtime (seconds) Remaining battery runtime. I.e. 1080."
+    ::= { batteryEntry 10 }
+
+batteryRuntimeLow OBJECT-TYPE
+    SYNTAX      Integer32 (0..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "when UPS switches to LB (seconds). I.e. 180."
+    ::= { batteryEntry 11 }
+
+batteryAlarmThreshold OBJECT-TYPE
+    SYNTAX      Integer32 (0..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Battery alarm threshold. I.e. 0 (immediate)."
+    ::= { batteryEntry 12 }
+
+batteryDate OBJECT-TYPE
+    SYNTAX      DisplayString (SIZE (0..255))
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Battery change date (opaque string). I.e. 11/14/00."
+    ::= { batteryEntry 13 }
+
+batteryMfrDate OBJECT-TYPE
+    SYNTAX      DisplayString (SIZE (0..255))
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Battery manufacturing date (opaque string). I.e. 2005/04/02."
+    ::= { batteryEntry 14 }
+
+batteryPacks OBJECT-TYPE
+    SYNTAX      Integer32 (0..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Number of battery packs. I.e. 001."
+    ::= { batteryEntry 15 }
+
+batteryPacksBad OBJECT-TYPE
+    SYNTAX      Integer32 (0..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Number of bad battery packs. I.e. 000."
+    ::= { batteryEntry 16 }
+
+batteryType OBJECT-TYPE
+    SYNTAX      DisplayString (SIZE (0..255))
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Battery chemistry (opaque string). I.e. PbAc."
+    ::= { batteryEntry 17 }
+
+batteryProtection OBJECT-TYPE
+    SYNTAX      INTEGER { no(0), yes(1) }
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Prevent deep discharge of battery. I.e. yes."
+    ::= { batteryEntry 18 }
+
+batteryEnergysave OBJECT-TYPE
+    SYNTAX      INTEGER { no(0), yes(1) }
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Switch off when running on battery and no/low load. I.e. no."
+    ::= { batteryEntry 19 }
+
+-- Name                           Description                                                            Example value
+-- ambient.temperature            Ambient temperature (degrees C)                                        25.40     
+-- ambient.temperature.alarm      Temperature alarm (enabled/disabled)                                   enabled   
+-- ambient.temperature.high       Temperature threshold high (degrees C)                                 40        
+-- ambient.temperature.low        Temperature threshold low (degrees C)                                  5         
+-- ambient.temperature.maximum    Maximum temperature seen (degrees C)                                   37.6      
+-- ambient.temperature.minimum    Minimum temperature seen (degrees C)                                   18.1      
+-- ambient.humidity               Ambient relative humidity (percent)                                    038.8     
+-- ambient.humidity.alarm         Relative humidity alarm (enabled/disabled)                             enabled   
+-- ambient.humidity.high          Relative humidity threshold high (percent)                             80        
+-- ambient.humidity.low           Relative humidity threshold high (percent)                             10        
+-- ambient.humidity.maximum       Maximum relative humidity seen (percent)                               60        
+-- ambient.humidity.minimum       Minimum relative humidity seen (percent)                               13        
+
+ambientTable     OBJECT-TYPE
+    SYNTAX      SEQUENCE OF AmbientEntryType
+    MAX-ACCESS      not-accessible
+    STATUS          current
+    DESCRIPTION
+         "A list of ambient."
+    ::= { nutMIBObjects 6 }
+
+AmbientEntryType ::=
+    SEQUENCE {
+       ambientTemperature TenthInteger32,
+       ambientTemperatureAlarm INTEGER,
+       ambientTemperatureHigh TenthInteger32, 
+       ambientTemperatureLow TenthInteger32,
+       ambientTemperatureMaximum TenthInteger32,
+       ambientTemperatureMinimum TenthInteger32,
+       ambientHumidity TenthInteger32,
+       ambientHumidityAlarm INTEGER,
+       ambientHumidityHigh TenthInteger32,
+       ambientHumidityLow TenthInteger32,
+       ambientHumidityMaximum TenthInteger32,
+       ambientHumidityMinimum TenthInteger32
+    }
+
+ambientEntry OBJECT-TYPE
+    SYNTAX      AmbientEntryType
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION
+            "An entry containing information about a particular ambient."
+    INDEX   { deviceIndex }
+    ::= { ambientTable 1 }
+
+ambientTemperature OBJECT-TYPE
+    SYNTAX      TenthInteger32 (-2730..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Ambient temperature (0.1 degrees C). I.e. 25.40."
+    ::= { ambientEntry 1 }
+
+ambientTemperatureAlarm OBJECT-TYPE
+    SYNTAX      INTEGER { disabled(0), enabled(1) }
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Temperature alarm (enabled/disabled). I.e. enabled."
+    ::= { ambientEntry 2 }
+
+ambientTemperatureHigh OBJECT-TYPE
+    SYNTAX      TenthInteger32 (-2730..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Temperature threshold high (degrees C). I.e. 40."
+    ::= { ambientEntry 3 }
+
+ambientTemperatureLow OBJECT-TYPE
+    SYNTAX      TenthInteger32 (-2730..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Temperature threshold low (degrees C). I.e. 5."
+    ::= { ambientEntry 4 }
+
+ambientTemperatureMaximum OBJECT-TYPE
+    SYNTAX      TenthInteger32 (-2730..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Maximum temperature seen (0.1 degrees C). I.e. 37.6."
+    ::= { ambientEntry 5 }
+
+ambientTemperatureMinimum OBJECT-TYPE
+    SYNTAX      TenthInteger32 (-2730..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Minimum temperature seen (0.1 degrees C). I.e. 18.1."
+    ::= { ambientEntry 6 }
+
+ambientHumidity OBJECT-TYPE
+    SYNTAX      TenthInteger32 (0..1000)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Ambient relative humidity (0.1 percent). I.e. 388 (38.8%)."
+    ::= { ambientEntry 7 }
+
+ambientHumidityAlarm OBJECT-TYPE
+    SYNTAX      INTEGER { disabled(0), enabled(1) }
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Relative humidity alarm (enabled/disabled). I.e. enabled."
+    ::= { ambientEntry 8 }
+
+ambientHumidityHigh OBJECT-TYPE
+    SYNTAX      TenthInteger32 (0..1000)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Relative humidity threshold high (percent). I.e. 80."
+    ::= { ambientEntry 9 }
+
+ambientHumidityLow OBJECT-TYPE
+    SYNTAX      TenthInteger32 (0..1000)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Relative humidity threshold high (percent). I.e. 10."
+    ::= { ambientEntry 10 }
+
+ambientHumidityMaximum OBJECT-TYPE
+    SYNTAX      TenthInteger32 (0..1000)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Maximum relative humidity seen (percent). I.e. 60."
+    ::= { ambientEntry 11 }
+
+ambientHumidityMinimum OBJECT-TYPE
+    SYNTAX      TenthInteger32 (0..1000)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Minimum relative humidity seen (percent). I.e. 13."
+    ::= { ambientEntry 12 }
+
+-- Name                           Description                                                            Example value
+-- outlet.n.id                    Outlet system identifier (opaque string)                               1         
+-- outlet.n.desc                  Outlet description (opaque string)                                     Main outlet
+-- outlet.n.switch                Outlet switch control (on/off)                                         on        
+-- outlet.n.status                Outlet switch status (on/off)                                          on        
+-- outlet.n.switchable            Outlet switch ability (yes/no)                                         yes       
+-- outlet.n.autoswitch.charge.low Remaining battery level to power off this outlet (percent)             80        
+-- outlet.n.delay.shutdown        Interval to wait before shutting down this outlet (seconds)            180       
+-- outlet.n.delay.start           Interval to wait before restarting this outlet (seconds)               120       
+-- outlet.n.current               Current (A)                                                            0.19      
+-- outlet.n.current.maximum       Maximum seen current (A)                                               0.56      
+-- outlet.n.realpower             Current value of real power (W)                                        28        
+-- outlet.n.voltage               Voltage (V)                                                            247.0     
+-- outlet.n.powerfactor           Power Factor (dimensionless value between 0 and 1)                     0.85      
+-- outlet.n.crestfactor           Crest Factor (dimensionless, equal to or greater than 1)               1.41      
+-- outlet.n.power                 Apparent power (VA)                                                    46        
+
+outletTable     OBJECT-TYPE
+    SYNTAX      SEQUENCE OF OutletEntryType
+    MAX-ACCESS      not-accessible
+    STATUS          current
+    DESCRIPTION
+         "A list of outlet."
+    ::= { nutMIBObjects 7 }
+
+OutletEntryType ::=
+    SEQUENCE {
+       outletIndex OutletIndexType,
+       outletId DisplayString,
+       outletDesc DisplayString,
+       outletSwitch INTEGER,
+       outletStatus INTEGER,
+       outletSwitchable INTEGER,
+       outletAutoswitchChargeLow Integer32,
+       outletDelayShutdown Integer32,
+       outletDelayStart Integer32,
+       outletCurrent HundredthInteger32,
+       outletCurrentMaximum HundredthInteger32,
+       outletRealpower Integer32,
+       outletVoltage TenthInteger32,
+       outletPowerfactor HundredthInteger32,
+       outletCrestfactor HundredthInteger32,
+       outletPower Integer32
+    }
+
+outletEntry OBJECT-TYPE
+    SYNTAX      OutletEntryType
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION
+            "An entry containing information about a particular outlet."
+    INDEX   { deviceIndex, outletIndex }
+    ::= { outletTable 1 }
+
+outletIndex OBJECT-TYPE
+	SYNTAX      OutletIndexType
+	MAX-ACCESS  not-accessible
+	STATUS      current
+	DESCRIPTION
+            "A unique value, greater than or equal to zero, for each outlet. It stands for the outlet index.
+            A special case is 0 which represents the whole set of outlets of the device."
+    ::= { outletEntry 1 }
+
+outletId OBJECT-TYPE
+    SYNTAX      DisplayString (SIZE (0..255))
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Outlet system identifier (opaque string). I.e. 1."
+    ::= { outletEntry 2 }
+
+outletDesc OBJECT-TYPE
+    SYNTAX      DisplayString (SIZE (0..255))
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Outlet description (opaque string). I.e. Main outlet."
+    ::= { outletEntry 3 }
+
+outletSwitch OBJECT-TYPE
+    SYNTAX      INTEGER { off(0), on(1) }
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Outlet switch control (on/off). I.e. on."
+    ::= { outletEntry 4 }
+
+outletStatus OBJECT-TYPE
+    SYNTAX      INTEGER { off(0), on(1) }
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Outlet switch status (on/off). I.e. on."
+    ::= { outletEntry 5 }
+
+outletSwitchable OBJECT-TYPE
+    SYNTAX      INTEGER { no(0), yes(1) }
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Outlet switch ability (yes/no). I.e. yes."
+    ::= { outletEntry 6 }
+
+outletAutoswitchChargeLow OBJECT-TYPE
+    SYNTAX      Integer32 (0..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Remaining battery level to power off this outlet (percent). I.e. 80."
+    ::= { outletEntry 7 }
+
+outletDelayShutdown OBJECT-TYPE
+    SYNTAX      Integer32 (0..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Interval to wait before shutting down this outlet (seconds). I.e. 180."
+    ::= { outletEntry 8 }
+
+outletDelayStart OBJECT-TYPE
+    SYNTAX      Integer32 (-1..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Interval to wait before restarting this outlet (seconds). I.e. 120."
+    ::= { outletEntry 9 }
+
+outletCurrent OBJECT-TYPE
+    SYNTAX      HundredthInteger32 (0..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Current (0.01 A). I.e. 19 (0.19 A)."
+    ::= { outletEntry 10 }
+
+outletCurrentMaximum OBJECT-TYPE
+    SYNTAX      HundredthInteger32 (0..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Maximum seen current (0.01 A). I.e. 56 (0.56 A)."
+    ::= { outletEntry 11 }
+
+outletRealpower OBJECT-TYPE
+    SYNTAX      Integer32 (0..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Current value of real power (W). I.e. 28."
+    ::= { outletEntry 12 }
+
+outletVoltage OBJECT-TYPE
+    SYNTAX      TenthInteger32 (0..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Voltage (0.1 V). I.e. 2470 (247 V)."
+    ::= { outletEntry 13 }
+
+outletPowerfactor OBJECT-TYPE
+    SYNTAX      HundredthInteger32 (0..100)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Power Factor (dimensionless value between 0 and 1, multiplied by 100). I.e. 85 (0.85)."
+    ::= { outletEntry 14 }
+
+outletCrestfactor OBJECT-TYPE
+    SYNTAX      HundredthInteger32 (1..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Crest Factor (dimensionless, equal to or greater than 1, multiplied by 100). I.e. 141 (1.41)."
+    ::= { outletEntry 15 }
+
+outletPower OBJECT-TYPE
+    SYNTAX      Integer32 (0..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Apparent power (VA). I.e. 46."
+    ::= { outletEntry 16 }
+
+-- Name                           Description                                                            Example value
+-- driver.name                    Driver name                                                            usbhid-ups
+-- driver.version                 Driver version (NUT release)                                           X.Y.Z     
+-- driver.version.internal        Internal driver version (if tracked separately)                        1.23.45   
+-- driver.parameter.xxx           Parameter xxx (ups.conf or cmdline -x) setting                         (varies)  
+-- driver.flag.xxx                Flag xxx (ups.conf or cmdline -x) status                               enabled (or absent)
+
+driverTable     OBJECT-TYPE
+    SYNTAX      SEQUENCE OF DriverEntryType
+    MAX-ACCESS      not-accessible
+    STATUS          current
+    DESCRIPTION
+         "A list of driver."
+    ::= { nutMIBObjects 8 }
+
+DriverEntryType ::=
+    SEQUENCE {
+       driverName DisplayString,
+       driverVersion DisplayString,
+       driverVersionInternal DisplayString
+    }
+
+driverEntry OBJECT-TYPE
+    SYNTAX      DriverEntryType
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION
+            "An entry containing information about a particular driver."
+    INDEX   { deviceIndex }
+    ::= { driverTable 1 }
+
+driverName OBJECT-TYPE
+    SYNTAX      DisplayString (SIZE (0..255))
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Driver name. I.e. usbhid-ups."
+    ::= { driverEntry 1 }
+
+driverVersion OBJECT-TYPE
+    SYNTAX      DisplayString (SIZE (0..255))
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Driver version (NUT release). I.e. X.Y.Z."
+    ::= { driverEntry 2 }
+
+driverVersionInternal OBJECT-TYPE
+    SYNTAX      DisplayString (SIZE (0..255))
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Internal driver version (if tracked separately). I.e. 1.23.45."
+    ::= { driverEntry 3 }
+
+--driverParameterXxx OBJECT-TYPE
+--    SYNTAX      DisplayString (SIZE (0..255))
+--    MAX-ACCESS  read-only
+--    STATUS      current
+--    DESCRIPTION
+--        "Parameter xxx (ups.conf or cmdline -x) setting. I.e. (varies)."
+--    ::= { driverEntry 4 }
+
+--driverFlagXxx OBJECT-TYPE
+--    SYNTAX      DisplayString (SIZE (0..255))
+--    MAX-ACCESS  read-only
+--    STATUS      current
+--    DESCRIPTION
+--        "Flag xxx (ups.conf or cmdline -x) status. I.e. enabled (or absent)."
+--    ::= { driverEntry 5 }
+
+-- Name                           Description                                                            Example value
+-- server.info                    Server information                                                     Network UPS Tools upsd vX.Y.Z - http://www.networkupstools.org/
+-- server.version                 Server version                                                         X.Y.Z     
+serverObjects   OBJECT IDENTIFIER ::= { nutMIBObjects 9 }
+
+serverInfo OBJECT-TYPE
+    SYNTAX      DisplayString (SIZE (0..255))
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Server information. I.e. Network UPS Tools upsd vX.Y.Z - http://www.networkupstools.org/."
+    ::= { serverObjects 1 }
+
+serverVersion OBJECT-TYPE
+    SYNTAX      DisplayString (SIZE (0..255))
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Server version. I.e. X.Y.Z."
+    ::= { serverObjects 2 }
+
+threephaseTable     OBJECT-TYPE
+    SYNTAX          SEQUENCE OF ThreephaseEntryType
+    MAX-ACCESS      not-accessible
+    STATUS          current
+    DESCRIPTION
+         "A list of driver."
+    ::= { nutMIBObjects 10 }
+   
+ThreephaseEntryType ::=
+    SEQUENCE {
+       threephaseDomain INTEGER,
+       threephaseSubdomain INTEGER,
+       threephaseContext INTEGER,
+       threephaseCurrent HundredthInteger32,
+       threephaseCurrentMaximum HundredthInteger32,
+       threephaseCurrentMinimum HundredthInteger32,
+       threephaseCurrentPeak HundredthInteger32,
+       threephaseVoltage TenthInteger32,
+       threephaseVoltageNominal TenthInteger32,
+       threephaseVoltageMaximum TenthInteger32,
+       threephaseVoltageMinimum TenthInteger32,
+       threephasePower Integer32,
+       threephasePowerMaximum Integer32,
+       threephasePowerMinimum Integer32,
+       threephasePowerPercent Integer32,
+       threephasePowerPercentMaximum Integer32,
+       threephasePowerPercentMinimum Integer32,
+       threephaseRealpower Integer32,
+       threephasePowerfactor HundredthInteger32,
+       threephaseCrestfactor HundredthInteger32,
+       threephaseFrequency TenthInteger32,
+       threephaseFrequencyNominal TenthInteger32
+    }
+    
+threephaseEntry OBJECT-TYPE
+    SYNTAX      ThreephaseEntryType
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION
+            "An entry containing information about a particular driver."
+    INDEX   { deviceIndex, threephaseDomain, threephaseSubdomain, threephaseContext }
+    ::= { threephaseTable 1 }
+   
+threephaseDomain OBJECT-TYPE
+    SYNTAX       INTEGER { input(1), output(2) }
+    MAX-ACCESS   not-accessible
+    STATUS       current
+    DESCRIPTION
+            "In a three-phased device, this type defines if the measure is about the 
+             input or output." 
+    ::= { threephaseEntry 1 }        
+
+threephaseSubdomain OBJECT-TYPE
+    SYNTAX       INTEGER { mains(1), bypass(2), servicebypass(3), load(4), inverter(5) }    
+    MAX-ACCESS   not-accessible
+    STATUS       current
+    DESCRIPTION
+            "In a three-phased device, in combination with DomainType, this type completes
+             the measure context. 'mains' (input.mains.) is only for input and is equals to 'input.'.
+             'load' (output.load.) is only for output and is equals to 'output.'. inverter is also
+             only for output." 
+    ::= { threephaseEntry 2 }        
+
+threephaseContext OBJECT-TYPE
+    SYNTAX       INTEGER { none(0), n(1), l1(2), l2(3), l3(4), l1n(5), l2n(6), l3n(7), l1l2(8), l2l3(9), l3l1(10) }
+    MAX-ACCESS   not-accessible
+    STATUS       current
+    DESCRIPTION
+            "In a three-phased device, the naming scheme becomes DOMAIN.CONTEXT.SPEC when in
+             three-phase mode. Example: input.L1.current. 'none' means the absence of context,
+             for frequency related measures and aggregated/averaged ones"
+    ::= { threephaseEntry 3 }
+
+threephaseCurrent OBJECT-TYPE
+    SYNTAX      HundredthInteger32 (0..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Current (0.01 A). I.e. 19 (0.19 A)."
+    ::= { threephaseEntry 4 }
+
+threephaseCurrentMaximum OBJECT-TYPE
+    SYNTAX      HundredthInteger32 (0..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Maximum seen current (0.01 A). I.e. 56 (0.56 A)."
+    ::= { threephaseEntry 5 }
+
+threephaseCurrentMinimum OBJECT-TYPE
+    SYNTAX      HundredthInteger32 (0..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Minimum seen current (0.01 A). I.e. 56 (0.56 A)."
+    ::= { threephaseEntry 6 }
+
+threephaseCurrentPeak OBJECT-TYPE
+    SYNTAX      HundredthInteger32 (0..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Peak current (0.01 A). I.e. 56 (0.56 A)."
+    ::= { threephaseEntry 7 }    
+    
+threephaseVoltage OBJECT-TYPE
+    SYNTAX      TenthInteger32 (0..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Voltage (0.1 V). I.e. 2470 (247 V)."
+    ::= { threephaseEntry 8 }
+
+threephaseVoltageNominal OBJECT-TYPE
+    SYNTAX      TenthInteger32 (0..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Nominal voltage (0.1 V). I.e. 2470 (247 V)."
+    ::= { threephaseEntry 9 }
+
+threephaseVoltageMaximum OBJECT-TYPE
+    SYNTAX      TenthInteger32 (0..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Maximum seen voltage (0.1 V). I.e. 2470 (247 V)."
+    ::= { threephaseEntry 10 }
+
+threephaseVoltageMinimum OBJECT-TYPE
+    SYNTAX      TenthInteger32 (0..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Minimum seen voltage (0.1 V). I.e. 2470 (247 V)."
+    ::= { threephaseEntry 11 }
+    
+threephasePower OBJECT-TYPE
+    SYNTAX      Integer32 (0..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Apparent power (VA). I.e. 46."
+    ::= { threephaseEntry 12 }       
+
+threephasePowerMaximum OBJECT-TYPE
+    SYNTAX      Integer32 (0..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Maximum seen apparent power (VA). I.e. 46."
+    ::= { threephaseEntry 13 }      
+    
+threephasePowerMinimum OBJECT-TYPE
+    SYNTAX      Integer32 (0..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Minimum seen apparent power (VA). I.e. 46."
+    ::= { threephaseEntry 14 }          
+
+threephasePowerPercent OBJECT-TYPE
+    SYNTAX      Integer32 (0..100)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Percentage of apparent power related to maximum load (percent). I.e. 023."
+    ::= { threephaseEntry 15 }    
+
+threephasePowerPercentMaximum OBJECT-TYPE
+    SYNTAX      Integer32 (0..100)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Max seen percentage of apparent power (percent). I.e. 023."
+    ::= { threephaseEntry 16 }    
+    
+threephasePowerPercentMinimum OBJECT-TYPE
+    SYNTAX      Integer32 (0..100)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Min seen percentage of apparent power (percent). I.e. 023."
+    ::= { threephaseEntry 17 }            
+    
+threephaseRealpower OBJECT-TYPE
+    SYNTAX      Integer32 (0..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Current value of real power (W). I.e. 28."
+    ::= { threephaseEntry 18 }    
+    
+threephasePowerfactor OBJECT-TYPE
+    SYNTAX      HundredthInteger32 (0..100)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Power Factor (dimensionless value between 0 and 1, multiplied by 100). I.e. 85 (0.85)."
+    ::= { threephaseEntry 19 }
+
+threephaseCrestfactor OBJECT-TYPE
+    SYNTAX      HundredthInteger32 (1..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Crest Factor (dimensionless, equal to or greater than 1, multiplied by 100). I.e. 141 (1.41)."
+    ::= { threephaseEntry 20 }    
+    
+threephaseFrequency OBJECT-TYPE
+    SYNTAX      TenthInteger32 (0..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Frequency (0.1 Hz). I.e. 602 (60.2 Hz)."
+    ::= { threephaseEntry 21 }
+
+threephaseFrequencyNominal OBJECT-TYPE
+    SYNTAX      TenthInteger32 (0..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Nominal frequency (0.1 Hz). I.e. 600."
+    ::= { threephaseEntry 22 }
+    
+-- conformance information
+
+nutConformance       OBJECT IDENTIFIER ::= { nutMIB 2 }
+nutCompliances       OBJECT IDENTIFIER ::= { nutConformance 2 }
+
+nutGroups            OBJECT IDENTIFIER ::= { nutConformance 1 }
+
+nutCompliance1 MODULE-COMPLIANCE
+    STATUS  current
+    DESCRIPTION
+            "The compliance statement for NUT devices."
+
+    MODULE  -- this module
+        MANDATORY-GROUPS { nutServerGroup }
+        GROUP nutDeviceGroup
+            DESCRIPTION
+                "A collection of objects providing information specific to
+                 a device"
+        GROUP nutUpsGroup
+            DESCRIPTION
+                "A collection of objects providing information specific to
+                 a device"
+        GROUP nutInputGroup
+            DESCRIPTION
+                "A collection of objects providing information specific to
+                 an input of a device"
+        GROUP nutOututGroup
+            DESCRIPTION
+                "A collection of objects providing information specific to
+                 an output of a device"
+        GROUP nutBatteryGroup
+            DESCRIPTION
+                "A collection of objects providing information specific to
+                 a baterry of a device"
+        GROUP nutAmbientGroup
+            DESCRIPTION
+                "A collection of objects providing information specific to
+                 the ambient of a device"
+        GROUP nutOutletGroup
+            DESCRIPTION
+                "A collection of objects providing information specific to
+                 a outlet of a device"
+        GROUP nutDriverGroup
+            DESCRIPTION
+                "A collection of objects providing information specific to
+                 the driver of a device"
+        GROUP nutServerGroup
+            DESCRIPTION
+                "A collection of objects providing information specific to
+                 the server"
+        GROUP nutThreephaseGroup
+            DESCRIPTION
+                "A collection of objects providing information specific to
+                three-phased devices in three-phase mode"                 
+    ::= { nutCompliances 1 }
+
+
+nutDeviceGroup    OBJECT-GROUP
+    OBJECTS { deviceName, deviceDesc, 
+              deviceModel, deviceMfr, 
+              deviceSerial, deviceType }
+    STATUS  current
+    DESCRIPTION
+            "A collection of objects providing information specific to
+             a device"
+    ::= { nutGroups 1 }
+
+nutUpsGroup    OBJECT-GROUP
+    OBJECTS {
+       upsStatus, upsAlarm, upsTime,
+       upsDate, upsModel, upsMfr,
+       upsMfrDate, upsSerial,
+       upsVendorid, upsProductid,
+       upsFirmware, upsFirmwareAux,
+       upsTemperature, upsLoad,
+       upsLoadHigh, upsId,
+       upsDelayStart, upsDelayReboot,
+       upsDelayShutdown, upsTimerStart,
+       upsTimerReboot, upsTimerShutdown,
+       upsTestInterval, upsTestResult,
+       upsDisplayLanguage, upsContacts,
+       upsEfficiency, upsPower,
+       upsPowerNominal, upsRealpower,
+       upsRealpowerNominal, upsBeeperStatus,
+       upsType, upsWatchdogStatus,
+       upsStartAuto, upsStartBattery,
+       upsStartReboot
+    }
+    STATUS  current
+    DESCRIPTION
+            "A collection of objects providing information specific to
+             a device"
+    ::= { nutGroups 2 }
+
+nutInputGroup    OBJECT-GROUP
+    OBJECTS {
+       inputVoltage, inputVoltageMaximum,
+       inputVoltageMinimum, inputVoltageNominal,
+       inputVoltageExtended, inputTransferReason,
+       inputTransferLow, inputTransferHigh,
+       inputTransferLowMin, inputTransferLowMax,
+       inputTransferHighMin, inputTransferHighMax,
+       inputSensitivity, inputQuality,
+       inputCurrent, inputCurrentNominal,
+       inputFrequency, inputFrequencyNominal,
+       inputFrequencyLow, inputFrequencyHigh,
+       inputFrequencyExtended, inputTransferBoostLow,
+       inputTransferBoostHigh, inputTransferTrimLow,
+       inputTransferTrimHigh, inputPhases
+    }
+    STATUS  current
+    DESCRIPTION
+            "A collection of objects providing information specific to
+             an input of a device"
+    ::= { nutGroups 3 }
+
+nutOututGroup    OBJECT-GROUP
+    OBJECTS {
+       outputVoltage, outputVoltageNominal,
+       outputFrequency, outputFrequencyNominal,
+       outputCurrent, outputCurrentNominal,
+       outputPhases
+    }
+    STATUS  current
+    DESCRIPTION
+            "A collection of objects providing information specific to
+             an output of a device"
+    ::= { nutGroups 4 }
+
+nutBatteryGroup    OBJECT-GROUP
+    OBJECTS {
+       batteryCharge, batteryChargeLow,
+       batteryChargeRestart, batteryChargeWarning,
+       batteryVoltage, batteryCapacity,
+       batteryCurrent, batteryTemperature,
+       batteryVoltageNominal, batteryRuntime,
+       batteryRuntimeLow, batteryAlarmThreshold,
+       batteryDate, batteryMfrDate,
+       batteryPacks, batteryPacksBad,
+       batteryType, batteryProtection,
+       batteryEnergysave
+    }
+    STATUS  current
+    DESCRIPTION
+            "A collection of objects providing information specific to
+             a baterry of a device"
+    ::= { nutGroups 5 }
+
+nutAmbientGroup    OBJECT-GROUP
+    OBJECTS {
+       ambientTemperature,
+       ambientTemperatureAlarm,
+       ambientTemperatureHigh,
+       ambientTemperatureLow,
+       ambientTemperatureMaximum,
+       ambientTemperatureMinimum,
+       ambientHumidity,
+       ambientHumidityAlarm,
+       ambientHumidityHigh,
+       ambientHumidityLow,
+       ambientHumidityMaximum,
+       ambientHumidityMinimum
+    }
+    STATUS  current
+    DESCRIPTION
+            "A collection of objects providing information specific to
+             the ambient of a device"
+    ::= { nutGroups 6 }
+
+nutOutletGroup    OBJECT-GROUP
+    OBJECTS {
+       outletId,
+       outletDesc,
+       outletSwitch,
+       outletStatus,
+       outletSwitchable,
+       outletAutoswitchChargeLow,
+       outletDelayShutdown,
+       outletDelayStart,
+       outletCurrent,
+       outletCurrentMaximum,
+       outletRealpower,
+       outletVoltage,
+       outletPowerfactor,
+       outletCrestfactor,
+       outletPower
+    }
+    STATUS  current
+    DESCRIPTION
+            "A collection of objects providing information specific to
+             a outlet of a device"
+    ::= { nutGroups 7 }
+
+nutDriverGroup    OBJECT-GROUP
+    OBJECTS {
+       driverName,
+       driverVersion,
+       driverVersionInternal
+   }
+    STATUS  current
+    DESCRIPTION
+            "A collection of objects providing information specific to
+             the driver of a device"
+    ::= { nutGroups 8 }
+
+nutServerGroup    OBJECT-GROUP
+    OBJECTS {
+        serverInfo, serverVersion
+    }
+    STATUS  current
+    DESCRIPTION
+            "A collection of objects providing information specific to
+             the server"
+    ::= { nutGroups 9 }
+
+nutThreephaseGroup    OBJECT-GROUP
+    OBJECTS {
+        threephaseCurrent, threephaseCurrentMaximum, threephaseCurrentMinimum,
+        threephaseCurrentPeak, threephaseVoltage, threephaseVoltageNominal,
+        threephaseVoltageMaximum, threephaseVoltageMinimum, threephasePower,
+        threephasePowerMaximum, threephasePowerMinimum, threephasePowerPercent, 
+        threephasePowerPercentMaximum, threephasePowerPercentMinimum,
+        threephaseRealpower, threephasePowerfactor, threephaseCrestfactor,
+        threephaseFrequency, threephaseFrequencyNominal
+    }
+    STATUS  current
+    DESCRIPTION
+            "A collection of objects providing information specific to
+             three-phased devices in three-phase mode"
+    ::= { nutGroups 10 }    
+    
+END

@@ -1,0 +1,47 @@
+output.voltage
+    
+
+Output voltage (V)
+    
+
+120.9
+
+output.voltage.nominal
+    
+
+Nominal output voltage (V)
+    
+
+120
+
+output.frequency
+    
+
+Output frequency (Hz)
+    
+
+59.9
+
+output.frequency.nominal
+    
+
+Nominal output frequency (Hz)
+    
+
+60
+
+output.current
+    
+
+Output current (A)
+    
+
+4.25
+
+output.current.nominal
+    
+
+Nominal output current (A)
+    
+
+5.0

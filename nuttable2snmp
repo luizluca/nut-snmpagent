@@ -1,0 +1,89 @@
+#!/usr/bin/awk -f 
+#
+# Call it with ./nuttable2snmp -v TABLE=xxx <txt-from-site
+#
+#
+
+BEGIN { printf "-- %-30s %-70s %-10s\n", "Name","Description","Example value"
+HEADER="tac | tac"
+ENTRY="tac | tac "
+FIELDS="tac | tac  "
+if (!(ID)) ID=1
+if (!(TABLE)) TABLE="xxx"
+if (!(INDEX)) INDEX=TABLE
+}
+
+function cap(str) {
+    return toupper(substr(str,1,1)) substr(str,2)
+}
+
+
+function convertName(var) {
+    N=split(var,parts,".")
+    OUT=parts[1]
+    for (I=2;I<=N;I++) {
+        OUT=OUT cap(parts[I])
+    }
+    return OUT
+}
+
+
+{
+field=$0
+getline
+getline
+getline
+desc=$0
+getline
+getline
+getline
+ex=$0
+getline
+
+fieldConv=convertName(field)
+
+printf "-- %-30s %-70s %-10s\n", field, desc, ex | HEADER
+
+printf "       %s DisplayString,\n", fieldConv | ENTRY
+
+printf "\n\
+%s OBJECT-TYPE\n\
+    SYNTAX      DisplayString (SIZE (0..255))\n\
+    MAX-ACCESS  read-only\n\
+    STATUS      current\n\
+    DESCRIPTION\n\
+        \042%s. I.e. %s.\042\n\
+    ::= { %sEntry %d }\n\
+", fieldConv, desc, ex, TABLE, ID++ | FIELDS
+
+}
+
+END {
+    close(HEADER)
+printf "\n\
+%sTable     OBJECT-TYPE\n\
+    SYNTAX      SEQUENCE OF %sEntry\n\
+    MAX-ACCESS      not-accessible\n\
+    STATUS          current\n\
+    DESCRIPTION\n\
+         \042A list of %s.\042\n\
+    ::= { nutMIBObjects x }\n\
+\n\
+%sEntry ::=\n\
+    SEQUENCE {\n", TABLE, cap(TABLE), TABLE, cap(TABLE)
+close(ENTRY)
+printf "\
+    }\n\
+\n\
+%sEntry OBJECT-TYPE\n\
+    SYNTAX      %sEntry\n\
+    MAX-ACCESS  not-accessible\n\
+    STATUS      current\n\
+    DESCRIPTION\n\
+            \042An entry containing information about a particular %s.\042\n\
+    INDEX   { %sIndex }\n\
+    ::= { %sTable 1 }\n\
+", TABLE, cap(TABLE), TABLE, INDEX, TABLE
+
+close(FIELDS)
+}
