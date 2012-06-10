@@ -1,4 +1,4 @@
-#!/usr/bin/ruby -w
+#!/usr/bin/ruby1.9.1 -w
 #
 # Wrapper to convert NUT information into SNMP
 #
@@ -10,6 +10,14 @@
 # The NUT.mib, converted into xml with (smidump -f xml) and
 # a lot of metaprogramming to do the job.
 #
+# How to use:
+#
+# TODO: get a IANA number for NUT
+#
+# /etc/snmp/snmpd.conf
+# pass_persist .1.3.6.1.4.1.26376.99 /my/path/to/snmp.nut
+#
+#
 # What is missing:
 # - I ignored the driver parameters.
 #
@@ -17,11 +25,38 @@
 # - Missing field: driver.version.data
 # - Wrong description of power.minimum     Maximum seen apparent power (VA)
 #
-# TODO
-# - fix problem with types without range
+# MAYBE
 # - use set for ups comands like load.off
 #
 require "thread"
+
+module CachedMethod
+    def cached(method, args=@cache_ttf)
+        key=[method, args]
+        return nil if not @cache.include? key
+        (result, timestamp)=@cache[key]
+        return nil if Time.now-timestamp>@ttf
+        return result
+    end
+
+    def cache(method, args, result)
+        key=[method, args]
+        @cache[key]=[result,Time.now]
+    end
+
+    def cache_method(method_sym, ttl=nil)
+        cached_version=<<-EOM
+            def #{method_sym.to_s}(*args)
+                value = cached(:#{method_sym.to_s}, args #{",#{ttl}" if ttl})
+                return value if not value==nil
+                return cache(:#{method_sym.to_s},args,super(*args))
+            end
+        EOM
+        class_eval cached_version
+    end
+
+    attr_accessor :cache_ttf
+end
 
 module SNMPPass
     INTEGER      =    "INTEGER"
@@ -96,7 +131,6 @@ module SNMPPass
 
         # I'm the node that have no childs but value
         class Node < Element
-
             def []=(roid)
                 raise "#{self.class} cannot be assigned"
             end
@@ -104,6 +138,7 @@ module SNMPPass
             def initialize(oid,type,value)
                 super(oid)
                 @value=value
+                raise "Type cannot be nil" if not type
                 @type=type
             end
             attr_reader :value, :type
@@ -143,7 +178,6 @@ module SNMPPass
         # I represent the fixed nodes of a SNMP tree that have childs
         # but I have none 
         class Tree < Element
-
             def initialize(oid)
                 super(oid)
                 @nodes=[]
@@ -171,7 +205,7 @@ module SNMPPass
             # element is after all items in the tree
             def getnext(oid)
                 roid=[]
-                roid=self.oid2roid(oid) if not (oid <=> self.oid) < 0
+                roid=self.oid2roid(oid) if (oid<=>self.oid) >= 0
                 roid_first = roid.first
                 return nil if roid_first and roid_first > @nodes.size-1
                 @nodes.each_index do
@@ -242,17 +276,16 @@ module SNMPPass
                 return nil if roid.empty?
                 validate_roid(roid)
                 $DEBUG.puts "get: #{SNMPPass.num2oid(oid)}"
-                (roid,value,type)=@callback.call(OP_GET, roid)
+                (roid,value,type)=@callback.call OP_GET, roid
                 return Node.new(self.roid2oid(roid), type, value) if value
                 return nil
             end
 
             def getnext(oid)
                 roid=[]
-                roid=self.oid2roid(oid) if not (oid <=> self.oid) < 0
+                roid=self.oid2roid(oid) if (oid<=>self.oid)>=0
                 (roid,value,type)=@callback.call OP_GETNEXT, roid
-                node_oid=(self.oid + roid)
-                return Node.new(node_oid, type, value) if value
+                return Node.new(self.roid2oid(roid), type, value) if value
                 return nil
             end
 
@@ -433,6 +466,11 @@ module SNMPPass
             end
         end
 
+#          <syntax>
+#            <type module="NUT-MIB" name="TenthInteger32"/>
+#          </syntax>
+
+
         def prepare_type(syntax, nodename)
             if syntax.elements["typedef"]
                 type=syntax.elements["typedef"].attributes["basetype"]
@@ -462,6 +500,9 @@ module SNMPPass
             else
                 typename=syntax.elements["type"].attributes["name"]
                 type=@types[typename]
+                if @decimals.include?(typename)
+                    @decimals[nodename]=@decimals[typename]
+                end
             end
 
             return type
@@ -515,9 +556,9 @@ module SNMPPass
                 $DEBUG.puts "GETting table #{tablename} at #{roid.inspect}"
                 return nil if roid.size < indexes.size + 1 + 1
                 # The roid is in the form [1,col,idx1,idx2,...]
-                (node_entry, node_column)=roid[0..1]
+                (_, node_column)=roid[0..1]
                 node_index=roid[2..-1]
-                (column_name,column_id,column_type)=columns.detect {|(column_name,column_id,column_type)| column_id==node_column}
+                (column_name,_,column_type)=columns.detect {|(_,column_id,_)| column_id==node_column}
                 return nil if not column_name
                 return nil if not rows_indexes.include?(node_index)
                 $DEBUG.puts "Calling #{column_name}(#{node_index.inspect})"
@@ -529,23 +570,22 @@ module SNMPPass
                 $DEBUG.puts "Going through table #{tablename} with indexes: #{rows_indexes.inspect}"
                 value=nil
                 row_column_roid=nil
-                columns.detect do
-                    |(column_name,column_id,column_type)|
+                (_,_,column_type)=columns.detect do
+                    |(_column_name,_column_id,_column_type)|
                     rows_indexes.detect do
                         |row_indexes|
 #                         $DEBUG.puts "Checking for table #{tablename}, column #{column_name} with indexes: #{row_indexes.inspect}"
-                        row_column_roid=[1, column_id] + row_indexes
-#                         $DEBUG.puts "Looking for next roid #{roid.inspect} X #{row_column_roid.inspect}"
+                        row_column_roid=[1, _column_id] + row_indexes
+                        $DEBUG.puts "Looking for next roid #{roid.inspect} X #{row_column_roid.inspect}"
                         if (not roid or roid.empty?) or ((roid <=> row_column_roid) < 0)
-                            $DEBUG.puts "Calling #{column_name}(#{row_indexes.join(",")})"
-                            value=self.send(column_name, *row_indexes)
-                            value=format_value(column_type,column_name,value) if value
+                            $DEBUG.puts "Calling #{_column_name}(#{row_indexes.join(",")})"
+                            value=self.send(_column_name, *row_indexes)
+                            value=format_value(_column_type,_column_name,value) if value
                         else
                             nil
                         end
                     end
                 end
-
                 return [row_column_roid, value, column_type]
             end
         end
@@ -561,7 +601,11 @@ module SNMPPass
     # I'm the first part specific to NUT. I implement the missing parts that GenericWithMib
     # expects to call with upsc command results. I use a lot of metaprogramming for this job.
     class NUT < GenericWithMib
+        attr_reader :upsc
         def initialize(mibxml)
+            #@upsc=Upsc.new
+            #@upsc=CachedUpsc.new(60)
+            @upsc=FakeUpsc.new
             super(mibxml)
             implement_methods
         end
@@ -580,17 +624,17 @@ module SNMPPass
                     EOM
                 end
                 columns.each do
-                    |(column_name,column_id,type)|
+                    |(column_name,_,_)|
                     if not self.respond_to? column_name
                         $DEBUG.puts "Defining #{column_name}(*indexes)"
                         meta+=<<-EOM
                           def #{column_name}(*indexes)
                               $DEBUG.puts "Running #{column_name}(\#{indexes.inspect})"
-                              (#{self.indexes[table_name].join(",")},x)=indexes
                               prop_names=mibname2prop("#{column_name}",*indexes)
                               prop_names=[prop_names] if not prop_names.kind_of? Array
+                              deviceIndex=indexes.first
                               prop_names.each { |prop_name|
-                                    value=upsc("\#{deviceName(deviceIndex)} \#{prop_name}")
+                                    value=upsc[deviceName(deviceIndex),prop_name]
                                     return parse_property("#{column_name}",value) if not value==nil
                               }
                               return nil
@@ -600,17 +644,6 @@ module SNMPPass
                 end
                 eval meta
             end
-        end
-
-        # Get the UPS avaiable, collecting its name and description
-        def ups
-            ups=Array.new
-            upsc("-L").split("\n").each do
-                |line|
-                (upsname, upsdesc)=line.split(": ",2)
-                ups << [upsname, upsdesc]
-            end
-            ups
         end
 
         # Maps the mib object names into the upsc property.
@@ -640,7 +673,7 @@ module SNMPPass
                 domain=@enums["threephaseDomain"].invert[threephaseDomain.to_s]
                 subdomain=@enums["threephaseSubdomain"].invert[threephaseSubDomain.to_s]
                 context=@enums["threephaseContext"].invert[threephaseContext.to_s]
-                context=context.sub(/([0-9])([ln])/,"\\1-\\2").upcase
+                context=mib_context2upsc_context(context)
                 parts[0]=domain
                 parts.insert(1,context) if not context=="NONE"
                 # HACK: input.mains. is input.
@@ -651,6 +684,14 @@ module SNMPPass
             return parts.join(".")
         end
 
+        def mib_context2upsc_context(context)
+            context.sub(/([0-9])([ln])/,"\\1-\\2").upcase
+        end
+        def upsc_context2mib_context(context)
+            context.sub(/-/,"").downcase
+        end
+
+
         # Some values can come in a string form like (yes/no,on/off,
         # servicebypass/bypass/...). Convert them using the MIB information
         def parse_property(name,value)
@@ -659,16 +700,16 @@ module SNMPPass
         end
 
         def serverInfo
-            upsc("server.info")
+            upsc[nil,"server.info"]
         end
 
         def serverVersion
-            upsc("server.version")
+            upsc[nil,"server.version"]
         end
     
         # Device table depends on the number of ups returned bu upsc -L
         def deviceTable
-            (1..ups.size).to_a
+            (1..upsc.devices.size).to_a
         end
 
         def deviceIndex(deviceIndex)
@@ -676,12 +717,12 @@ module SNMPPass
         end
 
         def deviceName(deviceIndex)
-            (name,desc)=ups[deviceIndex-1]
+            (name,_)=upsc.devices.to_a[deviceIndex-1]
             name
         end
 
         def deviceDesc(deviceIndex)
-            (name,desc)=ups[deviceIndex-1]
+            (_,desc)=upsc.devices.to_a[deviceIndex-1]
             desc
         end
 
@@ -690,8 +731,8 @@ module SNMPPass
             idx=deviceTable.collect do
                 |dev_id|
                 dev_name = deviceName(dev_id)
-                upsc(dev_name).split("\n").
-                    collect {|line| line.split(":",2).first.split(".") }.
+                upsc.properties(dev_name).
+                    collect {|prop| prop.split(".") }.
                     select {|parts| parts[0] == "outlet" }.
                     # HACK: outlet.0 is also outlet.
                     collect {|parts| parts[1]="0" if not parts[1] =~ /^[0-9]+$/; parts}.
@@ -709,32 +750,51 @@ module SNMPPass
         # the upsc command
         # TODO: I'm doing brute-force here. As side-effect, all rows are present
         def threephaseTable
-            idx=deviceTable.collect do
+            deviceTable.collect do
                 |dev_id|
                 indexes_for_device=[]
 
-                if inputPhases(dev_id)=="3"
-                    #"mains","bypass","servicebypass"
-                    indexes_for_device +=
-                        [1,2,3].collect {|subdomain|
-                            (0..10).collect {|context|
-                                [dev_id, 1, subdomain, context]
-                            }
-                        }.inject([],:+)
-                #    indexes_for_device << [dev_id,1,1,0]
-                end
+                isInputThreephase=inputPhases(dev_id)=="3"
+                isOutputThreephase=outputPhases(dev_id)=="3"
+                if isInputThreephase or isOutputThreephase
+                    # Select only properties about domains
+                    properties=upsc.properties(deviceName(dev_id)).
+                        collect{|prop| prop.split(".")}.
+                        select {|prop| @enums["threephaseDomain"].include?(prop.first) }.
+                        reject {|prop| prop[1] == "phases"}
+                    @enums["threephaseDomain"].each do
+                        |(domain, domain_id)|
+                        domain_properties=properties.select {|prop| prop[0] == domain }
+                        next if domain_properties.empty?
+                        case domain
+                        when "input"
+                           absent_subdomain="mains"
+                        when "output"
+                           absent_subdomain="load"
+                        end
+                        domain_properties=domain_properties.
+                            collect {|prop| @enums["threephaseSubdomain"].include?(prop[1]) ? prop : prop.dup.insert(1,absent_subdomain) }
 
-                if outputPhases(dev_id)=="3"
-                    #"bypass","servicebypass","load","inverter"
-                    indexes_for_device +=
-                        [2,3,4,5].collect {|subdomain|
-                            (0..10).collect {|context|
-                                [dev_id, 2, subdomain, context]
-                            }
-                        }.inject([],:+)
-                #    indexes_for_device << [dev_id,2,4,0]
-                end
+                        @enums["threephaseSubdomain"].each do
+                            |(subdomain, subdomain_id)|
+                            subdomain_properties=domain_properties.
+                                select {|prop| prop[1] == subdomain }.
+                                collect{|prop| prop=prop.dup;prop[2]=upsc_context2mib_context(prop[2]);prop }.
+                                collect{|prop| @enums["threephaseContext"].include?(prop[2])? prop : (prop=prop.dup;prop.insert(2,"none");prop) }
+                            next if subdomain_properties.empty?
 
+                            @enums["threephaseContext"].each do
+                                |(context, context_id)|
+                                any_context_property=subdomain_properties.
+                                    detect {|prop| prop[2] == context }
+                                next if not any_context_property
+                                #$stderr.puts "#{any_context_property.inspect} = #{[dev_id, domain_id, subdomain_id, context_id].inspect}"
+                                indexes_for_device << [dev_id, domain_id.to_i, subdomain_id.to_i, context_id.to_i]
+                            end
+                        end
+                    end
+                end
+                #$stderr.puts "#{indexes_for_device}"
                 indexes_for_device
             end.inject([],:+)
         end
@@ -749,40 +809,94 @@ module SNMPPass
             threephaseContext
         end
 
-#
-#       def upsc(args)
-#           `upsc -L #{args}`
-#       end
-
-        def upsc(args)
-            case args
-            when "-L"
-                #return "ups3: test3"
-                return "ups2: UPS2 10 KVA Lacerda Titan Black tri-mono 10KVA (220v) Serial A08823221\nxxx: Fictious\nupsoutlet: Example outlet\nups3p1: phases1\nups3p2: phases2\nups3: test3"
-            when "xxx"
-                return "battery.charge: 30\nbattery.voltage: 273.60\nbattery.voltage.high: 250\nbattery.voltage.low: 210\nbattery.voltage.nominal: 240.0\nbeeper.status: enabled\ndevice.mfr: Lacerda Sistemas de Energia\ndevice.model: Titan Black tri-mono 10KVA\ndevice.serial: A08823221\ndevice.type: ups\ndriver.name: blazer_ser\ndriver.parameter.pollinterval: 2\ndriver.parameter.port: /dev/ttyUSB0\ndriver.version: 2.6.2\ndriver.version.internal: 1.51\ninput.current.nominal: 27.0\ninput.frequency: 60.0\ninput.frequency.nominal: 60\ninput.voltage: 215.0\ninput.voltage.fault: 215.0\ninput.voltage.nominal: 220\noutput.voltage: 221.0\nups.delay.shutdown: 30\nups.delay.start: 180\nups.load: 43\nups.status: OL\nups.temperature: 47.0\nups.type: online\n"
-            when "ups2"
-                return "battery.charge: 100\nbattery.voltage: 274.60\nbattery.voltage.high: 250\nbattery.voltage.low: 210\nbattery.voltage.nominal: 240.0\nbeeper.status: enabled\ndevice.mfr: Lacerda Sistemas de Energia\ndevice.model: Titan Black tri-mono 10KVA\ndevice.serial: A08823221\ndevice.type: ups\ndriver.name: blazer_ser\ndriver.parameter.pollinterval: 2\ndriver.parameter.port: /dev/ttyUSB0\ndriver.version: 2.6.2\ndriver.version.internal: 1.51\ninput.current.nominal: 27.0\ninput.frequency: 60.0\ninput.frequency.nominal: 60\ninput.voltage: 215.0\ninput.voltage.fault: 215.0\ninput.voltage.nominal: 220\noutput.voltage: 221.0\nups.delay.shutdown: 30\nups.delay.start: 180\nups.load: 43\nups.status: OL\nups.temperature: 47.0\nups.type: online\n"
-            when "upsoutlet"
-                return "outlet.0.desc: Main Outlet\noutlet.0.id: 0\noutlet.0.switchable: 1\noutlet.1.autoswitch.charge.low: 0\noutlet.1.delay.shutdown: -1\noutlet.1.delay.start: -1\noutlet.1.desc: PowerShare Outlet 1\noutlet.1.id: 1\noutlet.1.switch: 1\noutlet.1.switchable: 1\noutlet.2.autoswitch.charge.low: 0\noutlet.2.delay.shutdown: -1\noutlet.2.delay.start: -1\noutlet.2.desc: PowerShare Outlet 2\noutlet.2.id: 2\noutlet.2.switch: 1\noutlet.2.switchable: 1"
-            when "ups3p1"
-                return "input.phases: 3\ninput.frequency: 50.0\ninput.L1.current: 133.0\ninput.bypass.L1-L2.voltage: 398.3\noutput.phases: 3\noutput.L1.power: 35700\noutput.powerfactor: 0.82"
-            when "ups3p2"
-                return "input.phases: 3\ninput.L2.current: 48.2\ninput.N.current: 3.4\ninput.L3-L1.voltage: 405.4\ninput.frequency: 50.1\noutput.phases: 1\noutput.current: 244.2\noutput.voltage: 120\noutput.frequency.nominal: 60.0"                     when "ups3"
-                return "battery.charge: 100\nbattery.charge.low: 20\nbattery.runtime: 2525\nbattery.type: PbAc\ndevice.mfr: EATON\ndevice.model: Ellipse MAX 1100\ndevice.serial: ADKK22008\ndevice.type: ups\ndriver.name: usbhid-ups\ndriver.parameter.pollfreq: 30\ndriver.parameter.pollinterval: 2\ndriver.parameter.port: auto\ndriver.version: 2.4.1-1988:1990M\ndriver.version.data: MGE HID 1.12\ndriver.version.internal: 0.34\ninput.sensitivity: normal\ninput.transfer.boost.low: 185\ninput.transfer.high: 285\ninput.transfer.low: 165\ninput.transfer.trim.high: 265\ninput.voltage.extended: no\noutlet.1.desc: PowerShare Outlet 1\noutlet.1.id: 2\noutlet.1.status: on\noutlet.1.switchable: no\noutlet.desc: Main Outlet\noutlet.id: 1\noutlet.switchable: no\noutput.frequency.nominal: 50\noutput.voltage: 230.0\noutput.voltage.nominal: 230\nups.beeper.status: enabled\nups.delay.shutdown: 20\nups.delay.start: 30\nups.firmware: 5102AH\nups.load: 0\nups.mfr: EATON\nups.model: Ellipse MAX 1100\nups.power.nominal: 1100\nups.productid: ffff\nups.serial: ADKK22008\nups.status: OL CHRG\nups.timer.shutdown: -1\nups.timer.start: -1\nups.vendorid: 0463"
-            when "server.info"
-                return "serverinfo example"
-            when "server.version"
-                return "test server version"
-            when /[[:alnum:]]+ [[:alnum:]\.]+/
-                (name,prop)=args.split(" ")
-                found_line=upsc(name).split("\n").detect {|line| prop==line.split(": ",2).first }
-                return found_line.split(": ",2).last if found_line
+        class Upsc
+            def upsc(args)
+               `upsc #{args}`
             end
-            nil
+
+            def split(txt)
+                # The order is kept only on ruby>1.9. Not the correct check but it will work
+                raise "Order kept only in ruby>1.9" if RUBY_VERSION<"1.9"
+                Hash[*txt.split("\n").collect {|line| line.split(": ",2) }.flatten]
+            end
+
+            def [](device_name,name)
+                property(device_name,name)
+            end
+
+            def property(device_name,name)
+                if not device_name
+                    txt=upsc(name)
+                else
+                    txt=upsc("#{device_name} #{name}")
+                end
+                return txt
+            end
+        
+            def devices
+                split(upsc("-L"))
+            end
+
+            def device(name)
+                split(upsc(name))
+            end
+
+            def properties(name)
+                device(name).keys
+            end
+        end
+
+        # Cache values for a given cache_lifetime seconds
+        class CachedUpsc < Upsc
+            include CachedMethod
+            extend CachedMethod
+
+            def initialize(cache_lifetime)
+                self.cache_lifetime=cache_lifetime
+                @cache=Hash.new
+            end
+   
+            cache_method :devices, 60
+            cache_method :device, 60
+
+            # Use the device cache instead
+            def property(device_name,name)
+                found=device(device).detect{|(prop,_)| prop==name }
+                return found.last if found
+            end
+        end
+        
+        class FakeUpsc < Upsc
+            def upsc(args)
+                case args
+                when "-L"
+                    #return "ups3: test3"
+                    return "ups2: UPS2 10 KVA Lacerda Titan Black tri-mono 10KVA (220v) Serial A08823221\nxxx: Fictious\nupsoutlet: Example outlet\nups3p1: phases1\nups3p2: phases2\nups3: test3"
+                when "xxx"
+                    return "battery.charge: 30\nbattery.voltage: 273.60\nbattery.voltage.high: 250\nbattery.voltage.low: 210\nbattery.voltage.nominal: 240.0\nbeeper.status: enabled\ndevice.mfr: Lacerda Sistemas de Energia\ndevice.model: Titan Black tri-mono 10KVA\ndevice.serial: A08823221\ndevice.type: ups\ndriver.name: blazer_ser\ndriver.parameter.pollinterval: 2\ndriver.parameter.port: /dev/ttyUSB0\ndriver.version: 2.6.2\ndriver.version.internal: 1.51\ninput.current.nominal: 27.0\ninput.frequency: 60.0\ninput.frequency.nominal: 60\ninput.voltage: 215.0\ninput.voltage.fault: 215.0\ninput.voltage.nominal: 220\noutput.voltage: 221.0\nups.delay.shutdown: 30\nups.delay.start: 180\nups.load: 43\nups.status: OL\nups.temperature: 47.0\nups.type: online\n"
+                when "ups2"
+                    return "battery.charge: 100\nbattery.voltage: 274.60\nbattery.voltage.high: 250\nbattery.voltage.low: 210\nbattery.voltage.nominal: 240.0\nbeeper.status: enabled\ndevice.mfr: Lacerda Sistemas de Energia\ndevice.model: Titan Black tri-mono 10KVA\ndevice.serial: A08823221\ndevice.type: ups\ndriver.name: blazer_ser\ndriver.parameter.pollinterval: 2\ndriver.parameter.port: /dev/ttyUSB0\ndriver.version: 2.6.2\ndriver.version.internal: 1.51\ninput.current.nominal: 27.0\ninput.frequency: 60.0\ninput.frequency.nominal: 60\ninput.voltage: 215.0\ninput.voltage.fault: 215.0\ninput.voltage.nominal: 220\noutput.voltage: 221.0\nups.delay.shutdown: 30\nups.delay.start: 180\nups.load: 43\nups.status: OL\nups.temperature: 47.0\nups.type: online\n"
+                when "upsoutlet"
+                    return "outlet.0.desc: Main Outlet\noutlet.0.id: 0\noutlet.0.switchable: 1\noutlet.1.autoswitch.charge.low: 0\noutlet.1.delay.shutdown: -1\noutlet.1.delay.start: -1\noutlet.1.desc: PowerShare Outlet 1\noutlet.1.id: 1\noutlet.1.switch: 1\noutlet.1.switchable: 1\noutlet.2.autoswitch.charge.low: 0\noutlet.2.delay.shutdown: -1\noutlet.2.delay.start: -1\noutlet.2.desc: PowerShare Outlet 2\noutlet.2.id: 2\noutlet.2.switch: 1\noutlet.2.switchable: 1"
+                when "ups3p1"
+                    return "input.phases: 3\ninput.frequency: 50.0\ninput.L1.current: 133.0\ninput.bypass.L1-L2.voltage: 398.3\noutput.phases: 3\noutput.L1.power: 35700\noutput.powerfactor: 0.82"
+                when "ups3p2"
+                    return "input.phases: 3\ninput.L2.current: 48.2\ninput.N.current: 3.4\ninput.L3-L1.voltage: 405.4\ninput.frequency: 50.1\noutput.phases: 1\noutput.current: 244.2\noutput.voltage: 120\noutput.frequency.nominal: 60.0"
+                when "ups3"
+                    return "battery.charge: 100\nbattery.charge.low: 20\nbattery.runtime: 2525\nbattery.type: PbAc\ndevice.mfr: EATON\ndevice.model: Ellipse MAX 1100\ndevice.serial: ADKK22008\ndevice.type: ups\ndriver.name: usbhid-ups\ndriver.parameter.pollfreq: 30\ndriver.parameter.pollinterval: 2\ndriver.parameter.port: auto\ndriver.version: 2.4.1-1988:1990M\ndriver.version.data: MGE HID 1.12\ndriver.version.internal: 0.34\ninput.sensitivity: normal\ninput.transfer.boost.low: 185\ninput.transfer.high: 285\ninput.transfer.low: 165\ninput.transfer.trim.high: 265\ninput.voltage.extended: no\noutlet.1.desc: PowerShare Outlet 1\noutlet.1.id: 2\noutlet.1.status: on\noutlet.1.switchable: no\noutlet.desc: Main Outlet\noutlet.id: 1\noutlet.switchable: no\noutput.frequency.nominal: 50\noutput.voltage: 230.0\noutput.voltage.nominal: 230\nups.beeper.status: enabled\nups.delay.shutdown: 20\nups.delay.start: 30\nups.firmware: 5102AH\nups.load: 0\nups.mfr: EATON\nups.model: Ellipse MAX 1100\nups.power.nominal: 1100\nups.productid: ffff\nups.serial: ADKK22008\nups.status: OL CHRG\nups.timer.shutdown: -1\nups.timer.start: -1\nups.vendorid: 0463"
+                when "server.info"
+                    return "serverinfo example"
+                when "server.version"
+                    return "test server version"
+                when /[[:alnum:]]+ [[:alnum:]\.]+/
+                    (name,target_prop)=args.split(" ")
+                    found=split(upsc(name)).detect{|(prop,_)| prop==target_prop }
+                    return found.last if found
+                end
+                nil
+            end
         end
     end
-
 end
 
 $DEBUG=File.open("/dev/null","w")
@@ -791,9 +905,12 @@ while ARGV.size>0
     case ARGV.first
     when "-d",'--debug'
         $DEBUG=File.open("/dev/stderr","w")
+        $DEBUG.sync=true
     when "-f",'--filelog'
         $DEBUG=File.open("/tmp/snmp.log","w")
+        $DEBUG.sync=true
     when "-s","--syslog"
+        $DEBUG.sync=true
         $DEBUG=IO.popen("logger -t snmp", "w")
     when "-t","--test"
         (in_rd,in_wr)=IO.pipe
@@ -929,7 +1046,7 @@ begin
     when :run
         snmp.run
     end
-rescue
+rescue Exception
     $DEBUG.puts "Program aborted!"
     $DEBUG.puts $!
     $DEBUG.puts $!.backtrace
@@ -946,10 +1063,10 @@ __END__
 <smi xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
      xsi:noNamespaceSchemaLocation="http://www.ibr.cs.tu-bs.de/projects/nmrg/smi.xsd">
   <module name="NUT-MIB" language="SMIv2">
-    <organization>
+    <organization>  
         Network UPS Tools
     </organization>
-    <contact>
+    <contact>       
                 Luiz Angelo Daros de Luca
         E-mail: luizluca@gmail.com
     </contact>
@@ -1314,7 +1431,7 @@ __END__
         <column name="upsDelayStart" oid="1.3.6.1.4.1.26376.99.1.2.1.17" status="current">
           <syntax>
             <typedef basetype="Integer32">
-              <range min="0" max="2147483647"/>
+              <range min="-1" max="2147483647"/>
             </typedef>
           </syntax>
           <access>readonly</access>
@@ -1325,7 +1442,7 @@ __END__
         <column name="upsDelayReboot" oid="1.3.6.1.4.1.26376.99.1.2.1.18" status="current">
           <syntax>
             <typedef basetype="Integer32">
-              <range min="0" max="2147483647"/>
+              <range min="-1" max="2147483647"/>
             </typedef>
           </syntax>
           <access>readonly</access>
@@ -1336,7 +1453,7 @@ __END__
         <column name="upsDelayShutdown" oid="1.3.6.1.4.1.26376.99.1.2.1.19" status="current">
           <syntax>
             <typedef basetype="Integer32">
-              <range min="0" max="2147483647"/>
+              <range min="-1" max="2147483647"/>
             </typedef>
           </syntax>
           <access>readonly</access>
@@ -1347,7 +1464,7 @@ __END__
         <column name="upsTimerStart" oid="1.3.6.1.4.1.26376.99.1.2.1.20" status="current">
           <syntax>
             <typedef basetype="Integer32">
-              <range min="0" max="2147483647"/>
+              <range min="-1" max="2147483647"/>
             </typedef>
           </syntax>
           <access>readonly</access>
@@ -1358,7 +1475,7 @@ __END__
         <column name="upsTimerReboot" oid="1.3.6.1.4.1.26376.99.1.2.1.21" status="current">
           <syntax>
             <typedef basetype="Integer32">
-              <range min="0" max="2147483647"/>
+              <range min="-1" max="2147483647"/>
             </typedef>
           </syntax>
           <access>readonly</access>
@@ -1369,7 +1486,7 @@ __END__
         <column name="upsTimerShutdown" oid="1.3.6.1.4.1.26376.99.1.2.1.22" status="current">
           <syntax>
             <typedef basetype="Integer32">
-              <range min="0" max="2147483647"/>
+              <range min="-1" max="2147483647"/>
             </typedef>
           </syntax>
           <access>readonly</access>
@@ -1380,7 +1497,7 @@ __END__
         <column name="upsTestInterval" oid="1.3.6.1.4.1.26376.99.1.2.1.23" status="current">
           <syntax>
             <typedef basetype="Integer32">
-              <range min="0" max="2147483647"/>
+              <range min="-1" max="2147483647"/>
             </typedef>
           </syntax>
           <access>readonly</access>
@@ -2465,7 +2582,7 @@ __END__
         <column name="outletDelayStart" oid="1.3.6.1.4.1.26376.99.1.7.1.9" status="current">
           <syntax>
             <typedef basetype="Integer32">
-              <range min="0" max="2147483647"/>
+              <range min="-1" max="2147483647"/>
             </typedef>
           </syntax>
           <access>readonly</access>
@@ -2655,7 +2772,7 @@ __END__
           </syntax>
           <access>noaccess</access>
           <description>
-              In a three-phased device, this type defines if the measure is about the
+              In a three-phased device, this type defines if the measure is about the 
               input or output.
           </description>
         </column>
